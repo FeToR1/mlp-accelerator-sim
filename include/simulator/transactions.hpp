@@ -15,6 +15,7 @@ enum class TransactionType {
     DmaToRam,
     InputSramToPe,
     WeightSramToPe,
+    PeToReduction,
     Count
 };
 

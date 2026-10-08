@@ -7,18 +7,21 @@
 #include "accelerator/dma.hpp"
 #include "accelerator/pe_array.hpp"
 #include "accelerator/ram.hpp"
+#include "accelerator/reduction.hpp"
 #include "simulator/transactions.hpp"
 
 SC_MODULE(PEArrayDemo) {
     SC_CTOR(PEArrayDemo, accelerator::DMA& dma, accelerator::PEArray& array,
+            accelerator::Reduction& reduction,
             const accelerator::FCCommand& command)
-        : dma(dma), array(array), command(command) {
+        : dma(dma), array(array), reduction(reduction), command(command) {
         SC_THREAD(run);
     }
 
    private:
     accelerator::DMA& dma;
     accelerator::PEArray& array;
+    accelerator::Reduction& reduction;
     const accelerator::FCCommand& command;
 
     void run() {
@@ -46,6 +49,17 @@ SC_MODULE(PEArrayDemo) {
                 }
                 std::cout << '\n';
             }
+        }
+
+        const auto result = reduction.reduce(
+            array.pes, std::size_t(command.m) * command.n);
+        std::cout << "Reduction end: " << sc_core::sc_time_stamp() << '\n';
+        for (std::size_t m = 0; m < command.m; ++m) {
+            std::cout << "Reduced[" << m << "]:";
+            for (std::size_t lane = 0; lane < command.n; ++lane) {
+                std::cout << ' ' << result[m * command.n + lane];
+            }
+            std::cout << '\n';
         }
     }
 };
@@ -77,7 +91,8 @@ int sc_main(int argc, char* argv[]) {
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);
     accelerator::PEArray array("array", config, transactions);
-    PEArrayDemo demo("demo", dma, array, command);
+    accelerator::Reduction reduction("reduction", transactions);
+    PEArrayDemo demo("demo", dma, array, reduction, command);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
@@ -107,6 +122,8 @@ int sc_main(int argc, char* argv[]) {
         transactions.stats(simulator::TransactionType::InputSramToPe);
     const auto& weight_pe =
         transactions.stats(simulator::TransactionType::WeightSramToPe);
+    const auto& pe_reduction =
+        transactions.stats(simulator::TransactionType::PeToReduction);
     std::cout << "RAM -> DMA: count=" << ram_dma.count
               << ", bytes=" << ram_dma.bytes << '\n';
     std::cout << "DMA -> SRAM: count=" << dma_sram.count
@@ -119,5 +136,7 @@ int sc_main(int argc, char* argv[]) {
               << ", bytes=" << input_pe.bytes << '\n';
     std::cout << "Weight SRAM -> PE: count=" << weight_pe.count
               << ", bytes=" << weight_pe.bytes << '\n';
+    std::cout << "PE -> reduction: count=" << pe_reduction.count
+              << ", bytes=" << pe_reduction.bytes << '\n';
     return 0;
 }
