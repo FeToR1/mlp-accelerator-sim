@@ -5,6 +5,36 @@
 #include "accelerator/config.hpp"
 #include "accelerator/ram.hpp"
 
+SC_MODULE(BlockTransferDemo) {
+    SC_CTOR(BlockTransferDemo, accelerator::ExternalRAM& ram,
+            std::uint64_t address, std::size_t count)
+        : ram(ram), address(address), count(count) {
+        SC_THREAD(run);
+    }
+
+   private:
+    accelerator::ExternalRAM& ram;
+    const std::uint64_t address;
+    const std::size_t count;
+    const sc_core::sc_time transfer_time{1, sc_core::SC_NS};
+
+    void run() {
+        std::cout << "Transfer begin: " << sc_core::sc_time_stamp() << '\n';
+
+        sc_core::wait(transfer_time);
+        const auto input = ram.read(address, count);
+
+        std::cout << "Transfer end: " << sc_core::sc_time_stamp()
+                  << ", model time=" << sc_core::sc_time_stamp() / transfer_time
+                  << '\n';
+        std::cout << "X:";
+        for (float value : input) {
+            std::cout << ' ' << value;
+        }
+        std::cout << '\n';
+    }
+};
+
 int sc_main(int, char*[]) {
     accelerator::AcceleratorConfig config;
     config.validate();
@@ -19,7 +49,7 @@ int sc_main(int, char*[]) {
     command.x_addr = ram.allocate(input_count);
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
 
-    sc_core::sc_start(sc_core::SC_ZERO_TIME);
+    BlockTransferDemo transfer("transfer", ram, command.x_addr, input_count);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
@@ -29,11 +59,9 @@ int sc_main(int, char*[]) {
               << ", K=" << command.k << '\n';
     std::cout << "X address=" << command.x_addr
               << ", RAM bytes=" << ram.size_bytes() << '\n';
-    std::cout << "X:";
-    for (float value : ram.read(command.x_addr, input_count)) {
-        std::cout << ' ' << value;
-    }
-    std::cout << '\n';
+
+    sc_core::sc_start();
+
     std::cout << "SystemC time=" << sc_core::sc_time_stamp() << '\n';
     return 0;
 }
