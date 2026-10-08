@@ -1,0 +1,25 @@
+# Local originals, environments, datasets and generated build products.
+/.local/
+/.venv/
+venv/
+/build*/
+/data/
+**/data/
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.dll
+*.o
+*.obj
+*.a
+*.lib
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+/experiments/results/
+*.bin
+
+# Documentation is published as Markdown with SVG figures.
+*.pdf
+*.html

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1000" viewBox="0 0 1280 1000" role="img">
+<title>Tiled layout and weight reuse</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#42566d"/></marker></defs>
+<rect width="1280" height="1000" fill="white"/>
+<text x="42" y="47" font-family="Segoe UI,Arial,sans-serif" font-size="29" fill="#152d46" text-anchor="start" font-weight="600">03 / Tiled layout and weight reuse</text>
+<text x="42" y="82" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#536477" text-anchor="start">Весь слой весов хранится в RAM. Weight tile: 4 outputs × 64 inputs — текущая часть в SRAM.</text>
+<text x="42" y="106" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#536477" text-anchor="start">Weight-stationary: веса используются для microbatch до 8 images; буфер B готовит следующий tile.</text>
+<rect x="42" y="125" width="540" height="90" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="312.0" y="163.5" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">Логические матрицы</text>
+<text x="312.0" y="188.5" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">X[M,K] · W[N,K] · Y[M,N]</text>
+<rect x="680" y="125" width="558" height="90" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="959.0" y="163.5" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Экспорт из Eigen-реализации</text>
+<text x="959.0" y="188.5" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">W_accel[n,k] = W_eigen[k,n]</text>
+<polyline points="680,170 582,170" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="100" y="275" width="1080" height="80" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="308.5" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">RAM: Wpacked[n_tile][k_tile][pe][local_k][lane]</text>
+<text x="640.0" y="333.5" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">Веса заранее упакованы в RAM в порядке аппаратного чтения</text>
+<polyline points="312,215 312,275" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="410" width="280" height="95" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="195.0" y="438.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">PE0: 16 inputs × 4 outputs</text>
+<text x="195.0" y="463.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">Своя часть weight tile</text>
+<text x="195.0" y="488.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">256 байт / буфер</text>
+<polyline points="195,355 195,410" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="350" y="410" width="280" height="95" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="490.0" y="438.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">PE1: 16 inputs × 4 outputs</text>
+<text x="490.0" y="463.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">Своя часть weight tile</text>
+<text x="490.0" y="488.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">256 байт / буфер</text>
+<polyline points="490,355 490,410" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="645" y="410" width="280" height="95" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="785.0" y="438.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">PE2: 16 inputs × 4 outputs</text>
+<text x="785.0" y="463.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">Своя часть weight tile</text>
+<text x="785.0" y="488.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">256 байт / буфер</text>
+<polyline points="785,355 785,410" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="940" y="410" width="280" height="95" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="1080.0" y="438.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">PE3: 16 inputs × 4 outputs</text>
+<text x="1080.0" y="463.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">Своя часть weight tile</text>
+<text x="1080.0" y="488.5" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#152d46" text-anchor="middle">256 байт / буфер</text>
+<polyline points="1080,355 1080,410" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="570" width="575" height="85" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="342.5" y="606.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">Одна строка весов [w0 w1 w2 w3]</text>
+<text x="342.5" y="631.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">4 весовых регистра внутри PE</text>
+<rect x="755" y="570" width="465" height="85" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="987.5" y="593.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">m=0 → m=1 → … → m=7</text>
+<text x="987.5" y="618.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Текущие веса не перечитываются</text>
+<text x="987.5" y="643.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">для каждого изображения</text>
+<polyline points="630,612 755,612" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="55" y="710" width="575" height="80" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="342.5" y="743.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">ACC[8][4] сохраняются</text>
+<text x="342.5" y="768.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">через все K-tiles текущего output tile</text>
+<rect x="755" y="710" width="465" height="80" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="987.5" y="743.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">M, N, K могут быть некратными</text>
+<text x="987.5" y="768.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">маски + нули; Y без padding</text>
+<polyline points="342,655 342,710" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="988,655 988,710" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="640" y="823" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Order: microbatch → output tile → K-tile → local_k → image</text>
+<rect x="42" y="850" width="1196" height="103" rx="10" fill="#f5f7fa" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="882.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Microbatch = 8, поэтому при batch = 32 один и тот же weight tile</text>
+<text x="640.0" y="907.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">загружается для четырёх microbatch.</text>
+<text x="640.0" y="932.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Partial sums остаются в ACC до завершения всех K-tiles.</text>
+<text x="42" y="979" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#687a8b" text-anchor="start">mlp-accelerator-sim · Архитектура · Базовая конфигурация: 4 PE</text>
+</svg>

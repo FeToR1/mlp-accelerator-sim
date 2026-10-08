@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1000" viewBox="0 0 1280 1000" role="img">
+<title>CPU + MLP inference coprocessor</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#42566d"/></marker></defs>
+<rect width="1280" height="1000" fill="white"/>
+<text x="42" y="47" font-family="Segoe UI,Arial,sans-serif" font-size="29" fill="#152d46" text-anchor="start" font-weight="600">01 / CPU + MLP inference coprocessor</text>
+<text x="42" y="82" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#536477" text-anchor="start">Операция ускорителя: Y = sigmoid(XWᵀ + b). Четыре PE содержат 16 MAC суммарно.</text>
+<rect x="42" y="125" width="265" height="85" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="174.5" y="161.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">CPU + IO CONTROLLER</text>
+<text x="174.5" y="186.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">модель · вход · консоль</text>
+<rect x="402" y="125" width="465" height="85" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="634.5" y="161.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">EXTERNAL SHARED RAM</text>
+<text x="634.5" y="186.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">X, packed W, bias, Y</text>
+<rect x="947" y="125" width="290" height="85" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="1092.0" y="161.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Command queue</text>
+<text x="1092.0" y="186.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">16 команд FC</text>
+<polyline points="307,160 402,160" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<polyline points="175,125 175,106 1092,106 1092,125" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="395" y="270" width="480" height="75" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="635.0" y="301.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">DMA + арбитр + распределитель</text>
+<text x="635.0" y="326.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">RAM interface: 128 bit/cycle</text>
+<rect x="947" y="270" width="290" height="55" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="1092.0" y="291.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Tile controller</text>
+<text x="1092.0" y="316.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">M, N, K → tile loops</text>
+<text x="1092" y="347" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#152d46" text-anchor="middle">Один microbatch — все 4 PE;</text>
+<text x="1092" y="366" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#152d46" text-anchor="middle">между PE делится</text>
+<text x="1092" y="385" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#152d46" text-anchor="middle">входная размерность K</text>
+<polyline points="635,210 635,270" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<polyline points="1092,210 1092,270" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="947,305 875,305" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="55" y="395" width="1165" height="48" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="637.5" y="425.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Распределение частей X и W между PE</text>
+<polyline points="635,345 635,395" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="55" y="490" width="280" height="94" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="195.0" y="518.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">LOCAL SRAM 0</text>
+<text x="195.0" y="543.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Input A/B + Weight A/B</text>
+<text x="195.0" y="568.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">банки W0, W1, W2, W3</text>
+<rect x="55" y="635" width="280" height="74" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="195.0" y="665.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">PE0: 4 MAC</text>
+<text x="195.0" y="690.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">отдельные ACC[8][4]</text>
+<polyline points="195,443 195,490" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<polyline points="195,584 195,635" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="195,709 195,744 470,744 470,770" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="350" y="490" width="280" height="94" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="490.0" y="518.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">LOCAL SRAM 1</text>
+<text x="490.0" y="543.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Input A/B + Weight A/B</text>
+<text x="490.0" y="568.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">банки W0, W1, W2, W3</text>
+<rect x="350" y="635" width="280" height="74" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="490.0" y="665.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">PE1: 4 MAC</text>
+<text x="490.0" y="690.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">отдельные ACC[8][4]</text>
+<polyline points="490,443 490,490" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<polyline points="490,584 490,635" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="490,709 490,744 585,744 585,770" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="645" y="490" width="280" height="94" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="785.0" y="518.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">LOCAL SRAM 2</text>
+<text x="785.0" y="543.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Input A/B + Weight A/B</text>
+<text x="785.0" y="568.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">банки W0, W1, W2, W3</text>
+<rect x="645" y="635" width="280" height="74" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="785.0" y="665.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">PE2: 4 MAC</text>
+<text x="785.0" y="690.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">отдельные ACC[8][4]</text>
+<polyline points="785,443 785,490" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<polyline points="785,584 785,635" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="785,709 785,744 700,744 700,770" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="940" y="490" width="280" height="94" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="1080.0" y="518.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">LOCAL SRAM 3</text>
+<text x="1080.0" y="543.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Input A/B + Weight A/B</text>
+<text x="1080.0" y="568.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">банки W0, W1, W2, W3</text>
+<rect x="940" y="635" width="280" height="74" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="1080.0" y="665.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">PE3: 4 MAC</text>
+<text x="1080.0" y="690.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">отдельные ACC[8][4]</text>
+<polyline points="1080,443 1080,490" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<polyline points="1080,584 1080,635" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="1080,709 1080,744 815,744 815,770" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="1237,307 1255,307 1255,610 155,610" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5"/>
+<polyline points="155,610 155,635" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="450,610 450,635" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="745,610 745,635" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1040,610 1040,635" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="365" y="770" width="550" height="62" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="794.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Редукция 4→1 → +bias → sigmoid LUT</text>
+<text x="640.0" y="819.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Сумма частичных dot product от 4 PE</text>
+<rect x="440" y="884" width="400" height="60" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="920.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Output SRAM A/B → DMA</text>
+<polyline points="640,832 640,884" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="840,914 1240,914 1240,245 845,245 845,270" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1080" y="938" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#152d46" text-anchor="middle">выгрузка Y в RAM</text>
+<polyline points="405,345 30,345 30,801 365,801" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="148" y="782" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#152d46" text-anchor="middle">bias через DMA</text>
+<text x="42" y="979" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#687a8b" text-anchor="start">mlp-accelerator-sim · Архитектура · Базовая конфигурация: 4 PE</text>
+</svg>

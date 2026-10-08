@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1000" viewBox="0 0 1280 1000" role="img">
+<title>Sigmoid LUT с линейной интерполяцией</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#42566d"/></marker></defs>
+<rect width="1280" height="1000" fill="white"/>
+<text x="42" y="47" font-family="Segoe UI,Arial,sans-serif" font-size="29" fill="#152d46" text-anchor="start" font-weight="600">06 / Sigmoid LUT с линейной интерполяцией</text>
+<text x="42" y="82" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#536477" text-anchor="start">Функция фиксирована; exp при инференсе не вычисляется. Таблица: 2049 × float32 = 8196 байт.</text>
+<rect x="42" y="125" width="340" height="80" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="212.0" y="158.5" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">z = reduction + bias</text>
+<text x="212.0" y="183.5" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">один итоговый скаляр</text>
+<rect x="480" y="125" width="758" height="80" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="859.0" y="146.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">z ≤ −16 → 0</text>
+<text x="859.0" y="171.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">z ≥ 16 → 1</text>
+<text x="859.0" y="196.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">otherwise → LUT + linear interpolation</text>
+<polyline points="382,165 480,165" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="380" y="260" width="550" height="85" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="655.0" y="296.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">Найти две соседние точки LUT</text>
+<text x="655.0" y="321.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">q — индекс; α — положение между точками</text>
+<polyline points="830,205 830,260" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="95" y="420" width="465" height="95" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="327.5" y="461.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Чётный банк ROM</text>
+<text x="327.5" y="486.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">table[0], table[2], …, table[2048]</text>
+<rect x="720" y="420" width="465" height="95" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="952.5" y="461.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Нечётный банк ROM</text>
+<text x="952.5" y="486.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">table[1], table[3], …, table[2047]</text>
+<polyline points="490,345 490,385 328,385 328,420" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="810,345 810,385 953,385 953,420" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="380" y="590" width="550" height="75" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="655.0" y="621.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">Селектор по q mod 2</text>
+<text x="655.0" y="646.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">a = table[q], b = table[q+1]</text>
+<polyline points="328,515 328,557 505,557 505,590" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="953,515 953,557 805,557 805,590" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="380" y="745" width="550" height="70" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="655.0" y="786.0" font-family="Segoe UI,Arial,sans-serif" font-size="25" fill="#152d46" text-anchor="middle">y = a + α × (b − a)</text>
+<polyline points="655,665 655,745" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="930,302 1230,302 1230,780 930,780" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1155" y="680" font-family="Segoe UI,Arial,sans-serif" font-size="22" fill="#152d46" text-anchor="middle">α</text>
+<rect x="42" y="850" width="1196" height="103" rx="10" fill="#f5f7fa" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="882.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Если z находится между двумя точками LUT, берутся два соседних значения</text>
+<text x="640.0" y="907.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">и линейно интерполируются: от a к b пропорционально положению α.</text>
+<text x="640.0" y="932.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Соседние точки читаются из разных банков параллельно. Результат → Output SRAM.</text>
+<text x="42" y="979" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#687a8b" text-anchor="start">mlp-accelerator-sim · Архитектура · Базовая конфигурация: 4 PE</text>
+</svg>

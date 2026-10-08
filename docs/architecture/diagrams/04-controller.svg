@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1000" viewBox="0 0 1280 1000" role="img">
+<title>CPU, command queue и C++ backend</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#42566d"/></marker></defs>
+<rect width="1280" height="1000" fill="white"/>
+<text x="42" y="47" font-family="Segoe UI,Arial,sans-serif" font-size="29" fill="#152d46" text-anchor="start" font-weight="600">04 / CPU, command queue и C++ backend</text>
+<text x="42" y="82" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#536477" text-anchor="start">Глубина сети определяется количеством FC-команд, а не аппаратурой.</text>
+<rect x="42" y="125" width="1196" height="70" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="166.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">CPU: MLP orchestration · обучение остаётся на CPU · выбор inference backend</text>
+<rect x="42" y="255" width="375" height="110" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="229.5" y="291.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">Eigen reference</text>
+<text x="229.5" y="316.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">X * W_eigen + b</text>
+<text x="229.5" y="341.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">исходная sigmoid</text>
+<rect x="552" y="255" width="686" height="110" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="895.0" y="291.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">C++ HardwareBackend::dense(command)</text>
+<text x="895.0" y="316.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">упаковщик + модель DMA/SRAM/PE/LUT</text>
+<text x="895.0" y="341.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">прямой проход и счётчики ресурсов</text>
+<polyline points="230,195 230,255" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="895,195 895,255" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="552" y="405" width="686" height="115" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="895.0" y="431.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">FC command</text>
+<text x="895.0" y="456.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">X/W/bias/Y addresses</text>
+<text x="895.0" y="481.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">M, N, K</text>
+<text x="895.0" y="506.0" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#152d46" text-anchor="middle">command_id</text>
+<polyline points="895,365 895,405" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="552" y="575" width="686" height="90" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="895.0" y="613.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">FIFO: FC(784→128) → FC(128→64) → FC(64→10)</text>
+<text x="895.0" y="638.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">размеры — пример, не константы оборудования</text>
+<polyline points="895,520 895,575" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1210" y="545" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#536477" text-anchor="end">64 B</text>
+<rect x="552" y="725" width="686" height="75" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="895.0" y="768.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Один ускоритель: DMA → tiles → MAC → LUT → DMA</text>
+<polyline points="895,665 895,725" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="42" y="450" width="375" height="135" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="229.5" y="486.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Контроль корректности</text>
+<text x="229.5" y="511.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">одинаковые веса и вход</text>
+<text x="229.5" y="536.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">ошибка значений + классы</text>
+<text x="229.5" y="561.0" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">точность на MNIST</text>
+<polyline points="230,365 230,450" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="552,763 230,763 230,585" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="42" y="852" width="1196" height="103" rx="10" fill="#f5f7fa" stroke="#7d94aa" stroke-width="1.6"/>
+<text x="640.0" y="884.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">FIFO пополняется CPU: 16 мест в очереди не означают максимум 16 слоёв.</text>
+<text x="640.0" y="909.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Следующая команда стартует после завершения записи Y предыдущей команды.</text>
+<text x="640.0" y="934.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">CPU меняет адреса буферов RAM A/B; sigmoid и аппаратные tile не параметризуются.</text>
+<text x="42" y="979" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#687a8b" text-anchor="start">mlp-accelerator-sim · Архитектура · Базовая конфигурация: 4 PE</text>
+</svg>
