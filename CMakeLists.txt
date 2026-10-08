@@ -29,6 +29,13 @@ target_include_directories(mlp_reference PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc
 target_compile_features(mlp_reference PUBLIC cxx_std_17)
 target_link_libraries(mlp_reference PUBLIC Eigen3::Eigen)
 
+add_executable(configuration_example examples/configuration.cpp)
+target_include_directories(configuration_example PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_features(configuration_example PRIVATE cxx_std_17)
+if(MINGW)
+    target_link_options(configuration_example PRIVATE -static)
+endif()
+
 # Keep the original implementation and Python API intact during the migration.
 pybind11_add_module(nn NO_EXTRAS src/mlp/nn.cpp)
 target_compile_features(nn PRIVATE cxx_std_17)

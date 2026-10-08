@@ -10,7 +10,7 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 развиваться рядом с исходной, которая останется доступной отдельно.
 
 Текущая версия содержит исходную MLP, отдельный C++ inference API,
-воспроизводимую сборку, эксперимент на MNIST и
+конфигурацию ускорителя, воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
 Компоненты ускорителя и симулятор пока не реализованы.
 
@@ -21,6 +21,8 @@ CMakeLists.txt
 src/mlp/nn.cpp                     исходная MLP и привязка Python
 include/mlp/reference.hpp          публичный C++ inference API
 src/mlp/reference.cpp              Eigen FC и последовательность слоёв
+include/accelerator/config.hpp     настройки будущей модели
+examples/configuration.cpp         пример конфигураций с 1, 2, 4 и 8 PE
 tests/                            численные проверки и сравнение с nn
 python/notebooks/mnist_experiment.ipynb
 python/scripts/check_reference.py  проверка собранного модуля
@@ -118,6 +120,50 @@ packed weights, параметризуемый массив PE, ACC, reduction �
 C++ кодом. Базовые размеры плиток: microbatch 8, output tile 4, K tile 64.
 Число PE задаётся конфигурацией перед запуском.
 
+### Первый шаг: конфигурация
+
+[`AcceleratorConfig`](include/accelerator/config.hpp) описывает устройство,
+с которым будет работать симулятор. Все настройки задаются перед запуском
+и остаются фиксированными на время одной симуляции.
+
+| Поле | По умолчанию | Смысл |
+|---|---:|---|
+| `pe_count` | 4 | Число вычислительных элементов PE |
+| `microbatch_size` | 8 | Максимальное число объектов, обрабатываемых одной порцией |
+| `output_tile_size` | 4 | Максимальное число выходных нейронов в одной плитке |
+| `k_tile_size` | 64 | Максимальное число входных признаков в одной плитке, суммарно для всех PE |
+
+Например, у сети с 784 входными признаками `k_tile_size = 64` означает
+обработку входов порциями до 64 признаков. У слоя со 128 выходами
+`output_tile_size = 4` задаёт порции по четыре выхода. Microbatch ограничивает
+число объектов в текущей порции, но не полный размер batch. Число PE задаёт,
+между сколькими вычислителями распределяется работа этой плитки.
+Само расписание обработки появится на этапе tiling.
+
+```cpp
+#include "accelerator/config.hpp"
+
+accelerator::AcceleratorConfig config;
+config.pe_count = 2;
+config.validate();
+```
+
+Структура содержит четыре обычных целочисленных поля с начальными значениями.
+`validate()` проверяет их положительность и сообщает об ошибке через
+`std::invalid_argument`. Конфигурация не содержит веса, входные данные
+или размеры сети: они будут заданы отдельными FC-командами.
+
+Пример выводит конфигурации для 1, 2, 4 и 8 PE:
+
+```sh
+cmake --build build --config Release --target configuration_example
+./build/configuration_example
+```
+
+В Windows PowerShell запустите `./build/configuration_example.exe`;
+при генераторе Visual Studio — `./build/Release/configuration_example.exe`.
+Это демонстрация настроек; симулятор начнёт использовать их на следующих этапах.
+
 Разработка идёт отдельными этапами и коммитами: reference API;
-config и FC command; RAM и packing; счётчики транзакций; DMA/SRAM;
+config; FC command; RAM и packing; счётчики транзакций; DMA/SRAM;
 PE; ACC/reduction; tiling; LUT; FIFO; интеграция; profiling; experiments.
