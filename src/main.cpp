@@ -1,10 +1,11 @@
 #include <iostream>
+#include <systemc>
 
 #include "accelerator/command.hpp"
 #include "accelerator/config.hpp"
 #include "accelerator/ram.hpp"
 
-int main() {
+int sc_main(int, char*[]) {
     accelerator::AcceleratorConfig config;
     config.validate();
 
@@ -13,10 +14,12 @@ int main() {
     command.n = 2;
     command.k = 3;
 
-    accelerator::ExternalRAM ram;
+    accelerator::ExternalRAM ram("ram");
     const auto input_count = std::size_t(command.m) * command.k;
     command.x_addr = ram.allocate(input_count);
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+
+    sc_core::sc_start(sc_core::SC_ZERO_TIME);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
@@ -31,4 +34,6 @@ int main() {
         std::cout << ' ' << value;
     }
     std::cout << '\n';
+    std::cout << "SystemC time=" << sc_core::sc_time_stamp() << '\n';
+    return 0;
 }

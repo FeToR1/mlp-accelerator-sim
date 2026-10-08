@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 project(mlp_accelerator_sim LANGUAGES CXX)
 
+find_package(SystemCLanguage 3.0 CONFIG REQUIRED)
+
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 execute_process(
     COMMAND "${Python_EXECUTABLE}" -m pybind11 --cmakedir
@@ -27,6 +29,11 @@ endif()
 add_executable(mlp_accelerator_sim src/main.cpp src/accelerator/ram.cpp)
 target_include_directories(mlp_accelerator_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(mlp_accelerator_sim PRIVATE cxx_std_17)
+target_link_libraries(mlp_accelerator_sim PRIVATE SystemC::systemc)
+set_target_properties(mlp_accelerator_sim PROPERTIES
+    CXX_STANDARD ${SystemC_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF)
 if(MINGW)
     target_link_options(mlp_accelerator_sim PRIVATE -static)
 endif()

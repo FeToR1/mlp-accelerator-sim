@@ -1,6 +1,6 @@
 # mlp-accelerator-sim
 
-MLP на C++/Eigen с Python-привязкой и проектируемой моделью ускорителя
+MLP на C++/Eigen с Python-привязкой и моделью ускорителя на SystemC
 инференса полносвязных сетей.
 
 Исходная реализация сохранена целиком в [`src/mlp/nn.cpp`](src/mlp/nn.cpp).
@@ -19,10 +19,10 @@ DMA, вычислительные компоненты и исполнение �
 ```text
 CMakeLists.txt
 src/mlp/nn.cpp                     исходная MLP и привязка Python
-src/main.cpp                      запуск проекта
+src/main.cpp                      запуск SystemC через sc_main
 include/accelerator/config.hpp     настройки будущей модели
 include/accelerator/command.hpp    описание одного FC-слоя
-include/accelerator/ram.hpp        интерфейс external RAM
+include/accelerator/ram.hpp        external RAM как sc_module
 src/accelerator/ram.cpp            хранение и перенос блоков FP32
 python/notebooks/mnist_experiment.ipynb
 python/scripts/profile_memory.py   профилирование памяти CPU
@@ -34,9 +34,8 @@ docs/architecture/README.md        архитектура и схемы SVG
 
 ## Сборка
 
-Нужны компилятор C++17, CMake 3.18+, Python с development headers,
-Eigen 3.3+ и pybind11. Eigen устанавливается отдельно; он не включён
-в репозиторий.
+Нужны компилятор C++17, CMake 3.18+, SystemC 3.0+, Python с development headers,
+Eigen 3.3+ и pybind11. Eigen и SystemC устанавливаются отдельно.
 
 ```sh
 python -m venv .venv
@@ -55,6 +54,18 @@ cmake --build build --config Release
 `-DPython_EXECUTABLE=<путь к python>`. Если Eigen скачан как набор
 заголовков без установки, задайте
 `-DEIGEN3_INCLUDE_DIR=<каталог, содержащий Eigen/>`.
+
+Для поиска SystemC задайте `-DCMAKE_PREFIX_PATH=<каталог установки SystemC>`.
+В текущем локальном окружении библиотека собрана в `.local/systemc`:
+
+```sh
+cmake -S . -B build "-DCMAKE_PREFIX_PATH=.local/systemc" -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+SystemC и приложение должны собираться совместимым компилятором и с одной
+версией стандарта C++. Локально используется SystemC 3.0.2, MinGW и C++17.
+Для установки библиотеки см. [инструкции SystemC](https://github.com/accellera-official/systemc/blob/3.0.2/INSTALL.md).
 
 Для MinGW на Windows используйте генератор `-G "MinGW Makefiles"`
 при первоначальной конфигурации. Компилятор и `mingw32-make` должны
@@ -92,7 +103,7 @@ python python/scripts/profile_memory.py
 packed weights, параметризуемый массив PE, ACC, reduction и sigmoid LUT
 с линейной интерполяцией.
 
-Симулятор запускается как C++ программа на CPU и считает работу спроектированной
+Симулятор запускается через ядро SystemC на CPU и считает работу спроектированной
 архитектуры. Модельное время измеряется коммуникационными транзакциями передачи
 блоков данных. Математические вычисления внутри PE выполняются обычным
 C++ кодом. Базовые размеры плиток: microbatch 8, output tile 4, K tile 64.
@@ -132,7 +143,7 @@ config.validate();
 или размеры сети: размеры одного слоя задаются FC-командой.
 
 [`src/main.cpp`](src/main.cpp) выводит конфигурацию, команду и данные из RAM.
-Именно `main` вызывает `config.validate()` перед использованием настроек.
+Именно `sc_main` вызывает `config.validate()` перед использованием настроек.
 Запуск после сборки:
 
 ```sh
@@ -168,8 +179,14 @@ config.validate();
 
 ### Третий шаг: external RAM
 
-[`ExternalRAM`](include/accelerator/ram.hpp) хранит FP32-данные в одном
-`std::vector<float>`:
+[`ExternalRAM`](include/accelerator/ram.hpp) объявлен через `SC_MODULE`,
+конструктор — через `SC_CTOR`. Модуль хранит FP32-данные в одном
+`std::vector<float>`. В `sc_main` модуль
+создаётся с именем `ram`; `sc_start(SC_ZERO_TIME)` запускает начальную фазу
+ядра SystemC.
+
+Процессы обмена и задержки пока не добавлены. Поэтому `sc_time_stamp()`
+после запуска показывает `0 s`.
 
 | Метод | Действие |
 |---|---|
