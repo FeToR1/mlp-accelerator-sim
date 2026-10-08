@@ -5,30 +5,32 @@
 #include "accelerator/config.hpp"
 #include "accelerator/dma.hpp"
 #include "accelerator/ram.hpp"
+#include "accelerator/sram.hpp"
 
 SC_MODULE(BlockTransferDemo) {
-    SC_CTOR(BlockTransferDemo, accelerator::DMA& dma,
+    SC_CTOR(BlockTransferDemo, accelerator::DMA& dma, accelerator::SRAM& input,
             std::uint64_t address, std::size_t count)
-        : dma(dma), address(address), count(count) {
+        : dma(dma), input(input), address(address), count(count) {
         SC_THREAD(run);
     }
 
    private:
     accelerator::DMA& dma;
+    accelerator::SRAM& input;
     const std::uint64_t address;
     const std::size_t count;
 
     void run() {
         std::cout << "Transfer begin: " << sc_core::sc_time_stamp() << '\n';
 
-        const auto input = dma.read(address, count);
+        dma.load(address, count, input);
 
         std::cout << "Transfer end: " << sc_core::sc_time_stamp()
                   << ", model time="
                   << sc_core::sc_time_stamp() / dma.transfer_time
                   << '\n';
-        std::cout << "X:";
-        for (float value : input) {
+        std::cout << "Input SRAM:";
+        for (float value : input.read()) {
             std::cout << ' ' << value;
         }
         std::cout << '\n';
@@ -50,7 +52,8 @@ int sc_main(int, char*[]) {
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
 
     accelerator::DMA dma("dma", ram);
-    BlockTransferDemo transfer("transfer", dma, command.x_addr, input_count);
+    accelerator::SRAM input("input_sram", input_count);
+    BlockTransferDemo transfer("transfer", dma, input, command.x_addr, input_count);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
@@ -59,7 +62,8 @@ int sc_main(int, char*[]) {
     std::cout << "FC: M=" << command.m << ", N=" << command.n
               << ", K=" << command.k << '\n';
     std::cout << "X address=" << command.x_addr
-              << ", RAM bytes=" << ram.size_bytes() << '\n';
+              << ", RAM bytes=" << ram.size_bytes()
+              << ", Input SRAM bytes=" << input.size_bytes() << '\n';
 
     sc_core::sc_start();
 

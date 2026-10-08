@@ -9,4 +9,10 @@ std::vector<float> DMA::read(std::uint64_t address, std::size_t count) {
     return ram.read(address, count);
 }
 
+void DMA::load(std::uint64_t address, std::size_t count, SRAM& destination) {
+    const auto block = read(address, count);
+    sc_core::wait(transfer_time);
+    destination.write(block);
+}
+
 }
