@@ -24,7 +24,7 @@ if(NOT Eigen3_FOUND)
         INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR}")
 endif()
 
-add_executable(mlp_accelerator_sim src/main.cpp)
+add_executable(mlp_accelerator_sim src/main.cpp src/accelerator/ram.cpp)
 target_include_directories(mlp_accelerator_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(mlp_accelerator_sim PRIVATE cxx_std_17)
 if(MINGW)

@@ -2,19 +2,21 @@
 
 #include "accelerator/command.hpp"
 #include "accelerator/config.hpp"
+#include "accelerator/ram.hpp"
 
 int main() {
     accelerator::AcceleratorConfig config;
     config.validate();
 
     accelerator::FCCommand command;
-    command.m = 8;
-    command.n = 128;
-    command.k = 784;
-    command.x_addr = 0x1000;
-    command.w_addr = 0x10000;
-    command.bias_addr = 0x80000;
-    command.y_addr = 0x90000;
+    command.m = 2;
+    command.n = 2;
+    command.k = 3;
+
+    accelerator::ExternalRAM ram;
+    const auto input_count = std::size_t(command.m) * command.k;
+    command.x_addr = ram.allocate(input_count);
+    ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
@@ -22,7 +24,11 @@ int main() {
               << ", K_tile=" << config.k_tile_size << '\n';
     std::cout << "FC: M=" << command.m << ", N=" << command.n
               << ", K=" << command.k << '\n';
-    std::cout << std::hex << "RAM offsets: X=0x" << command.x_addr << ", W=0x"
-              << command.w_addr << ", bias=0x" << command.bias_addr << ", Y=0x"
-              << command.y_addr << '\n';
+    std::cout << "X address=" << command.x_addr
+              << ", RAM bytes=" << ram.size_bytes() << '\n';
+    std::cout << "X:";
+    for (float value : ram.read(command.x_addr, input_count)) {
+        std::cout << ' ' << value;
+    }
+    std::cout << '\n';
 }
