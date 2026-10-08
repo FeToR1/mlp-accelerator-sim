@@ -10,7 +10,8 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 развиваться рядом с исходной, которая останется доступной отдельно.
 
 Текущая версия содержит исходную MLP, конфигурацию ускорителя, FC-команду,
-RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction и счётчик транзакций,
+RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction, упаковку весов
+и счётчик транзакций,
 воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
 Bias, sigmoid и исполнение FC-команд пока не реализованы.
@@ -35,6 +36,8 @@ include/accelerator/pe_array.hpp   массив PE с локальными SRAM
 src/accelerator/pe_array.cpp       распределение входов K между PE
 include/accelerator/reduction.hpp  объединение частичных сумм PE
 src/accelerator/reduction.cpp      приём блоков и дерево сложений
+include/accelerator/packed_weights.hpp  формат весовых плиток
+src/accelerator/packed_weights.cpp  упаковка Eigen-матрицы по плиткам и PE
 include/simulator/transactions.hpp типы обменов и статистика
 src/simulator/transactions.cpp     ожидание и учёт передач
 python/notebooks/mnist_experiment.ipynb
@@ -448,6 +451,48 @@ PE без назначенных входов передаёт такой же �
 Обмены по-прежнему последовательны. Для этого примера время равно
 `2 + 4 × min(pe_count, K) + pe_count`: два блока из RAM, загрузка каждого
 активного PE и получение сумм от всех PE.
+
+### Четырнадцатый шаг: packed weights
+
+`pack_weights(weights, config)` принимает Eigen-матрицу `[K, N]`, такую же
+по форме, как веса исходной MLP. Результат `PackedWeights` содержит размеры
+раскладки и линейный `values` в порядке
+`[n_tile][k_tile][pe][local_k][lane]`.
+
+Один блок PE хранит `ceil(k_tile_size / pe_count) × output_tile_size` значений.
+`offset(n_tile, k_tile, pe)` возвращает начало этого блока в словах FP32;
+для адреса RAM смещение нужно умножить на `sizeof(float)`.
+
+```text
+n = n_tile * output_tile_size + lane
+tile_k = local_k * pe_count + pe
+k = k_tile * k_tile_size + tile_k
+```
+
+При действительных индексах записывается `weights(k, n)`. Остальные элементы
+остаются нулями. Если `k_tile_size` не делится на число PE, лишние позиции
+`tile_k >= k_tile_size` также нулевые и не относятся к следующей плитке.
+Распределение входов между PE начинается заново для каждой K-плитки.
+
+В `src/main.cpp` перед запуском SystemC выводится первая строка весового
+блока каждого PE. Для четырёх PE:
+
+```text
+Packed weights: N tiles=1, K tiles=1, local K=16, bytes=1024
+Wpacked[0][0][0][0]: 4 1 -1 0
+Wpacked[0][0][1][0]: 5 0 -1 1
+Wpacked[0][0][2][0]: 6 1 -1 0
+Wpacked[0][0][3][0]: 0 0 0 0
+```
+
+Исходные веса занимают 48 байт; packed weights с дополнением до полной
+плитки — 1024 байта. При трёх PE выделяется 1056 байт из-за округления
+локальной ёмкости K вверх. Упаковка выполняется на CPU до симуляции
+и не создаёт коммуникационных транзакций.
+
+На этом шаге packed weights показаны отдельно. Существующая демонстрация
+DMA/PE/reduction получает обычные веса и сохраняет прежние результаты
+и статистику. Загрузка упакованных блоков из RAM будет следующим этапом.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;

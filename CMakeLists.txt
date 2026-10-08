@@ -34,10 +34,11 @@ add_executable(mlp_accelerator_sim
     src/accelerator/pe.cpp
     src/accelerator/pe_array.cpp
     src/accelerator/reduction.cpp
+    src/accelerator/packed_weights.cpp
     src/simulator/transactions.cpp)
 target_include_directories(mlp_accelerator_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(mlp_accelerator_sim PRIVATE cxx_std_17)
-target_link_libraries(mlp_accelerator_sim PRIVATE SystemC::systemc)
+target_link_libraries(mlp_accelerator_sim PRIVATE SystemC::systemc Eigen3::Eigen)
 set_target_properties(mlp_accelerator_sim PROPERTIES
     CXX_STANDARD ${SystemC_CXX_STANDARD}
     CXX_STANDARD_REQUIRED ON

@@ -5,14 +5,15 @@
 #include "accelerator/command.hpp"
 #include "accelerator/config.hpp"
 #include "accelerator/dma.hpp"
+#include "accelerator/packed_weights.hpp"
 #include "accelerator/pe_array.hpp"
 #include "accelerator/ram.hpp"
 #include "accelerator/reduction.hpp"
 #include "simulator/transactions.hpp"
 
 SC_MODULE(PEArrayDemo) {
-    SC_CTOR(PEArrayDemo, accelerator::DMA& dma, accelerator::PEArray& array,
-            accelerator::Reduction& reduction,
+    SC_CTOR(PEArrayDemo, accelerator::DMA & dma, accelerator::PEArray & array,
+            accelerator::Reduction & reduction,
             const accelerator::FCCommand& command)
         : dma(dma), array(array), reduction(reduction), command(command) {
         SC_THREAD(run);
@@ -51,8 +52,8 @@ SC_MODULE(PEArrayDemo) {
             }
         }
 
-        const auto result = reduction.reduce(
-            array.pes, std::size_t(command.m) * command.n);
+        const auto result =
+            reduction.reduce(array.pes, std::size_t(command.m) * command.n);
         std::cout << "Reduction end: " << sc_core::sc_time_stamp() << '\n';
         for (std::size_t m = 0; m < command.m; ++m) {
             std::cout << "Reduced[" << m << "]:";
@@ -76,17 +77,32 @@ int sc_main(int argc, char* argv[]) {
     command.n = config.output_tile_size;
     command.k = 3;
 
+    accelerator::WeightMatrix weights(command.k, command.n);
+    weights << 4.0f, 1.0f, -1.0f, 0.0f, 5.0f, 0.0f, -1.0f, 1.0f, 6.0f, 1.0f,
+        -1.0f, 0.0f;
+    const auto packed = accelerator::pack_weights(weights, config);
+    std::cout << "Packed weights: N tiles=" << packed.n_tiles
+              << ", K tiles=" << packed.k_tiles
+              << ", local K=" << packed.local_k_size
+              << ", bytes=" << packed.values.size() * sizeof(float) << '\n';
+    for (std::size_t pe = 0; pe < packed.pe_count; ++pe) {
+        const auto base = packed.offset(0, 0, pe);
+        std::cout << "Wpacked[0][0][" << pe << "][0]:";
+        for (std::size_t lane = 0; lane < packed.lane_count; ++lane) {
+            std::cout << ' ' << packed.values[base + lane];
+        }
+        std::cout << '\n';
+    }
+
     accelerator::ExternalRAM ram("ram");
     const auto input_count = std::size_t(command.m) * command.k;
     const auto weight_count = std::size_t(command.k) * command.n;
     command.x_addr = ram.allocate(input_count);
     command.w_addr = ram.allocate(weight_count);
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
-    ram.write(command.w_addr, {
-        4.0f, 1.0f, -1.0f, 0.0f,
-        5.0f, 0.0f, -1.0f, 1.0f,
-        6.0f, 1.0f, -1.0f, 0.0f,
-    });
+    ram.write(
+        command.w_addr,
+        std::vector<float>(weights.data(), weights.data() + weights.size()));
 
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);
@@ -114,10 +130,14 @@ int sc_main(int argc, char* argv[]) {
               << ", transactions=" << transactions.total.count
               << ", transferred bytes=" << transactions.total.bytes << '\n';
 
-    const auto& ram_dma = transactions.stats(simulator::TransactionType::RamToDma);
-    const auto& dma_sram = transactions.stats(simulator::TransactionType::DmaToSram);
-    const auto& sram_dma = transactions.stats(simulator::TransactionType::SramToDma);
-    const auto& dma_ram = transactions.stats(simulator::TransactionType::DmaToRam);
+    const auto& ram_dma =
+        transactions.stats(simulator::TransactionType::RamToDma);
+    const auto& dma_sram =
+        transactions.stats(simulator::TransactionType::DmaToSram);
+    const auto& sram_dma =
+        transactions.stats(simulator::TransactionType::SramToDma);
+    const auto& dma_ram =
+        transactions.stats(simulator::TransactionType::DmaToRam);
     const auto& input_pe =
         transactions.stats(simulator::TransactionType::InputSramToPe);
     const auto& weight_pe =
