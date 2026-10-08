@@ -6,8 +6,8 @@ namespace accelerator {
 
 void PE::load(const std::vector<float>& input,
               const std::vector<float>& weights) {
-    if (input.size() != weights.size()) {
-        throw std::invalid_argument("PE input and weight sizes differ");
+    if (weights.size() != input.size() * lane_count) {
+        throw std::invalid_argument("PE weights must contain K x lanes values");
     }
     transactions.transfer(simulator::TransactionType::InputSramToPe,
                           input.size() * sizeof(float));
@@ -18,9 +18,12 @@ void PE::load(const std::vector<float>& input,
 }
 
 void PE::compute() {
+    // MAC без продвижения model time
     for (std::size_t k = 0; k < x.size(); ++k) {
-        acc += x[k] * w[k];
-        ++mac_count;
+        for (std::size_t lane = 0; lane < lane_count; ++lane) {
+            acc[lane] += x[k] * w[k * lane_count + lane];
+            ++mac_count;
+        }
     }
 }
 

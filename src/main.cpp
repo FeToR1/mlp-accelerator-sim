@@ -28,7 +28,7 @@ SC_MODULE(PEDemo) {
         std::cout << "Load begin: " << sc_core::sc_time_stamp() << '\n';
 
         dma.load(command.x_addr, command.k, input);
-        dma.load(command.w_addr, command.k, weights);
+        dma.load(command.w_addr, std::size_t(command.k) * command.n, weights);
         std::cout << "DMA loads end: " << sc_core::sc_time_stamp() << '\n';
 
         pe.load(input.read(), weights.read());
@@ -36,7 +36,11 @@ SC_MODULE(PEDemo) {
         pe.compute();
         std::cout << "Compute: " << compute_begin << " -> "
                   << sc_core::sc_time_stamp() << '\n';
-        std::cout << "PE acc=" << pe.acc << ", MAC=" << pe.mac_count << '\n';
+        std::cout << "PE acc:";
+        for (float value : pe.acc) {
+            std::cout << ' ' << value;
+        }
+        std::cout << ", MAC ops=" << pe.mac_count << '\n';
     }
 };
 
@@ -47,26 +51,32 @@ int sc_main(int, char*[]) {
 
     accelerator::FCCommand command;
     command.m = 1;
-    command.n = 1;
+    command.n = config.output_tile_size;
     command.k = 3;
 
     accelerator::ExternalRAM ram("ram");
+    const auto weight_count = std::size_t(command.k) * command.n;
     command.x_addr = ram.allocate(command.k);
-    command.w_addr = ram.allocate(command.k);
+    command.w_addr = ram.allocate(weight_count);
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f});
-    ram.write(command.w_addr, {4.0f, 5.0f, 6.0f});
+    ram.write(command.w_addr, {
+        4.0f, 1.0f, -1.0f, 0.0f,
+        5.0f, 0.0f, -1.0f, 1.0f,
+        6.0f, 1.0f, -1.0f, 0.0f,
+    });
 
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);
     accelerator::SRAM input("input_sram", command.k);
-    accelerator::SRAM weights("weight_sram", command.k);
-    accelerator::PE pe("pe", transactions);
+    accelerator::SRAM weights("weight_sram", weight_count);
+    accelerator::PE pe("pe", transactions, config.output_tile_size);
     PEDemo demo("demo", dma, input, weights, pe, command);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
               << ", output_tile=" << config.output_tile_size
               << ", K_tile=" << config.k_tile_size << '\n';
+    std::cout << "MAC lanes per PE=" << pe.acc.size() << '\n';
     std::cout << "FC: M=" << command.m << ", N=" << command.n
               << ", K=" << command.k << '\n';
     std::cout << "X address=" << command.x_addr
