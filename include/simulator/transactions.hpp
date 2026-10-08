@@ -34,7 +34,8 @@ class Transactions {
    private:
     const sc_core::sc_time transfer_time{1, sc_core::SC_NS};
     std::array<TransactionStats,
-               static_cast<std::size_t>(TransactionType::Count)> by_type{};
+               static_cast<std::size_t>(TransactionType::Count)>
+        by_type{};
 };
 
 }

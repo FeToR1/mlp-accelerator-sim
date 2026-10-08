@@ -24,9 +24,7 @@ void PE::load(const std::vector<float>& input,
     k_count = input.size() / batch_count;
 }
 
-void PE::clear_acc() {
-    std::fill(acc.begin(), acc.end(), 0.0f);
-}
+void PE::clear_acc() { std::fill(acc.begin(), acc.end(), 0.0f); }
 
 void PE::compute() {
     // MAC без продвижения model time

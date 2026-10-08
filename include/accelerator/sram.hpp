@@ -12,6 +12,7 @@ SC_MODULE(SRAM) {
 
     void write(const std::vector<float>& values);
     const std::vector<float>& read() const { return memory; }
+    std::vector<float> read(std::size_t count) const;
     std::size_t size_bytes() const { return memory.size() * sizeof(float); }
 
    private:

@@ -10,11 +10,15 @@ std::vector<float> DMA::read(std::uint64_t address, std::size_t count) {
     return ram.read(address, count);
 }
 
+void DMA::write(SRAM& destination, const std::vector<float>& values) {
+    transactions.transfer(simulator::TransactionType::DmaToSram,
+                          values.size() * sizeof(float));
+    destination.write(values);
+}
+
 void DMA::load(std::uint64_t address, std::size_t count, SRAM& destination) {
     const auto block = read(address, count);
-    transactions.transfer(simulator::TransactionType::DmaToSram,
-                          block.size() * sizeof(float));
-    destination.write(block);
+    write(destination, block);
 }
 
 void DMA::store(std::uint64_t address, std::size_t count, const SRAM& source) {
