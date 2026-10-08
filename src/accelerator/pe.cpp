@@ -1,13 +1,18 @@
 #include "accelerator/pe.hpp"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace accelerator {
 
 void PE::load(const std::vector<float>& input,
-              const std::vector<float>& weights) {
-    if (weights.size() != input.size() * lane_count) {
-        throw std::invalid_argument("PE weights must contain K x lanes values");
+              const std::vector<float>& weights, std::size_t batch_count) {
+    if (batch_count == 0 || batch_count > microbatch_size) {
+        throw std::invalid_argument("PE batch must fit microbatch size");
+    }
+    if (input.size() % batch_count != 0 ||
+        weights.size() != input.size() / batch_count * lane_count) {
+        throw std::invalid_argument("PE blocks must match M x K and K x lanes");
     }
     transactions.transfer(simulator::TransactionType::InputSramToPe,
                           input.size() * sizeof(float));
@@ -15,14 +20,23 @@ void PE::load(const std::vector<float>& input,
     transactions.transfer(simulator::TransactionType::WeightSramToPe,
                           weights.size() * sizeof(float));
     w = weights;
+    this->batch_count = batch_count;
+    k_count = input.size() / batch_count;
+}
+
+void PE::clear_acc() {
+    std::fill(acc.begin(), acc.end(), 0.0f);
 }
 
 void PE::compute() {
     // MAC без продвижения model time
-    for (std::size_t k = 0; k < x.size(); ++k) {
-        for (std::size_t lane = 0; lane < lane_count; ++lane) {
-            acc[lane] += x[k] * w[k * lane_count + lane];
-            ++mac_count;
+    for (std::size_t k = 0; k < k_count; ++k) {
+        for (std::size_t m = 0; m < batch_count; ++m) {
+            for (std::size_t lane = 0; lane < lane_count; ++lane) {
+                acc[m * lane_count + lane] +=
+                    x[m * k_count + k] * w[k * lane_count + lane];
+                ++mac_count;
+            }
         }
     }
 }

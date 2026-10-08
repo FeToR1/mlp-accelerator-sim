@@ -26,21 +26,25 @@ SC_MODULE(PEDemo) {
 
     void run() {
         std::cout << "Load begin: " << sc_core::sc_time_stamp() << '\n';
+        pe.clear_acc();
 
-        dma.load(command.x_addr, command.k, input);
+        dma.load(command.x_addr, std::size_t(command.m) * command.k, input);
         dma.load(command.w_addr, std::size_t(command.k) * command.n, weights);
         std::cout << "DMA loads end: " << sc_core::sc_time_stamp() << '\n';
 
-        pe.load(input.read(), weights.read());
+        pe.load(input.read(), weights.read(), command.m);
         const auto compute_begin = sc_core::sc_time_stamp();
         pe.compute();
         std::cout << "Compute: " << compute_begin << " -> "
                   << sc_core::sc_time_stamp() << '\n';
-        std::cout << "PE acc:";
-        for (float value : pe.acc) {
-            std::cout << ' ' << value;
+        for (std::size_t m = 0; m < command.m; ++m) {
+            std::cout << "ACC[" << m << "]:";
+            for (std::size_t lane = 0; lane < command.n; ++lane) {
+                std::cout << ' ' << pe.acc[m * command.n + lane];
+            }
+            std::cout << '\n';
         }
-        std::cout << ", MAC ops=" << pe.mac_count << '\n';
+        std::cout << "MAC ops=" << pe.mac_count << '\n';
     }
 };
 
@@ -50,15 +54,16 @@ int sc_main(int, char*[]) {
     config.validate();
 
     accelerator::FCCommand command;
-    command.m = 1;
+    command.m = 2;
     command.n = config.output_tile_size;
     command.k = 3;
 
     accelerator::ExternalRAM ram("ram");
+    const auto input_count = std::size_t(command.m) * command.k;
     const auto weight_count = std::size_t(command.k) * command.n;
-    command.x_addr = ram.allocate(command.k);
+    command.x_addr = ram.allocate(input_count);
     command.w_addr = ram.allocate(weight_count);
-    ram.write(command.x_addr, {1.0f, 2.0f, 3.0f});
+    ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
     ram.write(command.w_addr, {
         4.0f, 1.0f, -1.0f, 0.0f,
         5.0f, 0.0f, -1.0f, 1.0f,
@@ -67,16 +72,18 @@ int sc_main(int, char*[]) {
 
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);
-    accelerator::SRAM input("input_sram", command.k);
+    accelerator::SRAM input("input_sram", input_count);
     accelerator::SRAM weights("weight_sram", weight_count);
-    accelerator::PE pe("pe", transactions, config.output_tile_size);
+    accelerator::PE pe("pe", transactions, config.output_tile_size,
+                       config.microbatch_size);
     PEDemo demo("demo", dma, input, weights, pe, command);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
               << ", output_tile=" << config.output_tile_size
               << ", K_tile=" << config.k_tile_size << '\n';
-    std::cout << "MAC lanes per PE=" << pe.acc.size() << '\n';
+    std::cout << "MAC lanes per PE=" << config.output_tile_size
+              << ", ACC bytes=" << pe.acc.size() * sizeof(float) << '\n';
     std::cout << "FC: M=" << command.m << ", N=" << command.n
               << ", K=" << command.k << '\n';
     std::cout << "X address=" << command.x_addr

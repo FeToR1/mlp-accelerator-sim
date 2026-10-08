@@ -29,8 +29,8 @@ include/accelerator/dma.hpp        DMA как sc_module
 src/accelerator/dma.cpp            загрузка и выгрузка через DMA
 include/accelerator/sram.hpp       локальная SRAM как sc_module
 src/accelerator/sram.cpp           запись блока в SRAM
-include/accelerator/pe.hpp         PE с суммами по MAC-линиям
-src/accelerator/pe.cpp             загрузка блоков и цикл MAC по линиям
+include/accelerator/pe.hpp         PE с ACC для microbatch и MAC-линий
+src/accelerator/pe.cpp             загрузка блоков и цикл MAC по объектам и линиям
 include/simulator/transactions.hpp типы обменов и статистика
 src/simulator/transactions.cpp     ожидание и учёт передач
 python/notebooks/mnist_experiment.ipynb
@@ -342,6 +342,34 @@ Weight SRAM — 48 байт, четыре суммы ACC — 16 байт.
 
 Это микроархитектура одного PE для одного объекта. Полный packed layout,
 microbatch с `ACC[m][lane]`, несколько PE и reduction будут отдельными шагами.
+
+### Одиннадцатый шаг: microbatch внутри PE
+
+PE получает `microbatch_size` при создании. ACC выделяется сразу на
+`microbatch_size × lane_count` значений; при базовых 8 объектах и 4 линиях
+это 32 суммы и 128 байт. Хранилище представлено одним вектором,
+`acc[m * lane_count + lane]` соответствует `ACC[m][lane]`.
+
+`load(input, weights, batch_count)` принимает действительное число объектов,
+не превышающее ёмкость microbatch. Входы имеют порядок `[m][local_k]`,
+веса — `[local_k][lane]`. Весовой блок загружается один раз для всех объектов.
+`compute()` перебирает `local_k`, затем объекты и линии; при двух объектах,
+трёх входах и четырёх линиях выполняются 24 MAC-операции.
+
+`clear_acc()` обнуляет все суммы перед новым microbatch или output tile,
+сохраняя общий счётчик MAC. `load()` и `compute()` суммы не сбрасывают,
+чтобы позже сохранять partial sums между K tiles. Очищение ACC и вычисления
+не продвигают модельное время.
+
+В текущем примере `X = [[1, 2, 3], [4, 5, 6]]`, веса сохранены из предыдущего
+шага. Вывод содержит две строки: `[32, 4, -6, 2]` и `[77, 10, -15, 5]`.
+Обе загрузки через DMA и две передачи в PE дают шесть транзакций,
+model time `6` и 216 переданных байт. Вычисление начинается и заканчивается
+в момент `6 ns`. Входной блок занимает 24 байта, весовой — 48 байт,
+RAM с выравниванием — 80 байт, ACC — 128 байт.
+
+Сейчас один PE обрабатывает один microbatch целиком. Разбиение большого batch,
+несколько PE, K tiling и reduction будут отдельными шагами.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;
