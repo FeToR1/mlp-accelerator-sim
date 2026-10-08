@@ -4,7 +4,6 @@
 
 namespace accelerator {
 
-// Set before starting a simulation. All components use the same configuration.
 struct AcceleratorConfig {
     int pe_count = 4;
     int microbatch_size = 8;
@@ -27,4 +26,4 @@ struct AcceleratorConfig {
     }
 };
 
-}  // namespace accelerator
+}

@@ -7,7 +7,7 @@
 <rect x="42" y="125" width="1196" height="70" rx="10" fill="#fff3dc" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="640.0" y="166.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">CPU: MLP orchestration · обучение остаётся на CPU · выбор inference backend</text>
 <rect x="42" y="255" width="375" height="110" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
-<text x="229.5" y="291.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">Eigen reference</text>
+<text x="229.5" y="291.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">Eigen CPU backend</text>
 <text x="229.5" y="316.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">X * W_eigen + b</text>
 <text x="229.5" y="341.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">исходная sigmoid</text>
 <rect x="552" y="255" width="686" height="110" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
