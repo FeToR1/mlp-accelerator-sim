@@ -10,7 +10,7 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 развиваться рядом с исходной, которая останется доступной отдельно.
 
 Текущая версия содержит исходную MLP, конфигурацию ускорителя, FC-команду,
-RAM, DMA и локальную SRAM,
+RAM, DMA, локальную SRAM и счётчик транзакций,
 воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
 Вычислительные компоненты и исполнение команд пока не реализованы.
@@ -29,13 +29,15 @@ include/accelerator/dma.hpp        DMA как sc_module
 src/accelerator/dma.cpp            чтение блока RAM с ожиданием
 include/accelerator/sram.hpp       локальная SRAM как sc_module
 src/accelerator/sram.cpp           запись блока в SRAM
+include/simulator/transactions.hpp типы обменов и статистика
+src/simulator/transactions.cpp     ожидание и учёт передач
 python/notebooks/mnist_experiment.ipynb
 python/scripts/profile_memory.py   профилирование памяти CPU
 docs/architecture/README.md        архитектура и схемы SVG
 ```
 
 По мере реализации появятся `bindings/pybind/`,
-`src/simulator/` и `experiments/`.
+`experiments/`.
 
 ## Сборка
 
@@ -218,14 +220,14 @@ Model time в примере равен `sc_time_stamp() / transfer_time`, то 
 данных в `sc_main` относится к подготовке входов и не учитывается как обмен.
 
 После завершения процесса `sc_start()` возвращает управление, поскольку
-ожидающих событий больше нет. Счётчики транзакций появятся отдельно.
+ожидающих событий больше нет.
 
 ### Пятый шаг: чтение через DMA
 
 [`DMA`](include/accelerator/dma.hpp) объявлен через `SC_MODULE` и получает
 ссылку на RAM при создании. Метод `read(address, count)` в
-[`src/accelerator/dma.cpp`](src/accelerator/dma.cpp) выполняет
-`wait(transfer_time)`, затем возвращает блок из RAM.
+[`src/accelerator/dma.cpp`](src/accelerator/dma.cpp) вызывает
+`transactions.transfer(RamToDma, bytes)`, затем возвращает блок из RAM.
 
 `wait()` приостанавливает вызвавший процесс `BlockTransferDemo::run`, поэтому
 DMA не нужен собственный поток для этого блокирующего вызова. Метод нужно
@@ -243,12 +245,28 @@ DMA не нужен собственный поток для этого блок
 
 `DMA::load(address, count, destination)` выполняет два обмена:
 сначала `read()` переносит блок RAM → DMA за одну единицу времени,
-затем ещё один `wait(transfer_time)` учитывает передачу DMA → SRAM.
+затем `transactions.transfer(DmaToSram, bytes)` учитывает передачу DMA → SRAM.
 Блок появляется в SRAM после второго ожидания.
 
 В `main` входная SRAM содержит шесть значений и занимает 24 байта.
 После загрузки время равно `2 ns`, model time — `2`. Просмотр содержимого
 через `read()` нужен для вывода примера и не учитывается как аппаратная передача.
+
+### Седьмой шаг: общий учёт транзакций
+
+[`Transactions`](include/simulator/transactions.hpp) — обычный C++-класс,
+общий для компонентов одной модели. `transfer(type, bytes)` вызывает
+`wait(transfer_time)` и после ожидания увеличивает число транзакций и байтов:
+общие (`total`) и по типу (`stats(type)`). Все ожидания обменов сейчас находятся
+в [`src/simulator/transactions.cpp`](src/simulator/transactions.cpp).
+Метод вызывается из `SC_THREAD`; `model_time()` возвращает время SystemC,
+выраженное в единицах передачи.
+
+В примере обмены последовательны: RAM → DMA и DMA → SRAM дают model time `2`
+и две транзакции. Каждый участок переносит 24 байта, всего — 48 байт.
+Это объём обменов, а не ёмкость памяти и не объём уникальных данных.
+При будущих параллельных обменах число транзакций и прошедшее время нужно
+рассматривать отдельно; текущий пример показывает последовательную загрузку.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;

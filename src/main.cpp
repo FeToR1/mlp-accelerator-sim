@@ -6,6 +6,7 @@
 #include "accelerator/dma.hpp"
 #include "accelerator/ram.hpp"
 #include "accelerator/sram.hpp"
+#include "simulator/transactions.hpp"
 
 SC_MODULE(BlockTransferDemo) {
     SC_CTOR(BlockTransferDemo, accelerator::DMA& dma, accelerator::SRAM& input,
@@ -25,10 +26,7 @@ SC_MODULE(BlockTransferDemo) {
 
         dma.load(address, count, input);
 
-        std::cout << "Transfer end: " << sc_core::sc_time_stamp()
-                  << ", model time="
-                  << sc_core::sc_time_stamp() / dma.transfer_time
-                  << '\n';
+        std::cout << "Transfer end: " << sc_core::sc_time_stamp() << '\n';
         std::cout << "Input SRAM:";
         for (float value : input.read()) {
             std::cout << ' ' << value;
@@ -51,7 +49,8 @@ int sc_main(int, char*[]) {
     command.x_addr = ram.allocate(input_count);
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
 
-    accelerator::DMA dma("dma", ram);
+    simulator::Transactions transactions;
+    accelerator::DMA dma("dma", ram, transactions);
     accelerator::SRAM input("input_sram", input_count);
     BlockTransferDemo transfer("transfer", dma, input, command.x_addr, input_count);
 
@@ -68,5 +67,15 @@ int sc_main(int, char*[]) {
     sc_core::sc_start();
 
     std::cout << "SystemC time=" << sc_core::sc_time_stamp() << '\n';
+    std::cout << "Model time=" << transactions.model_time()
+              << ", transactions=" << transactions.total.count
+              << ", transferred bytes=" << transactions.total.bytes << '\n';
+
+    const auto& ram_dma = transactions.stats(simulator::TransactionType::RamToDma);
+    const auto& dma_sram = transactions.stats(simulator::TransactionType::DmaToSram);
+    std::cout << "RAM -> DMA: count=" << ram_dma.count
+              << ", bytes=" << ram_dma.bytes << '\n';
+    std::cout << "DMA -> SRAM: count=" << dma_sram.count
+              << ", bytes=" << dma_sram.bytes << '\n';
     return 0;
 }

@@ -30,7 +30,8 @@ add_executable(mlp_accelerator_sim
     src/main.cpp
     src/accelerator/ram.cpp
     src/accelerator/dma.cpp
-    src/accelerator/sram.cpp)
+    src/accelerator/sram.cpp
+    src/simulator/transactions.cpp)
 target_include_directories(mlp_accelerator_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(mlp_accelerator_sim PRIVATE cxx_std_17)
 target_link_libraries(mlp_accelerator_sim PRIVATE SystemC::systemc)
