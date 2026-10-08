@@ -8,7 +8,13 @@
 
 namespace simulator {
 
-enum class TransactionType { RamToDma, DmaToSram, Count };
+enum class TransactionType {
+    RamToDma,
+    DmaToSram,
+    SramToDma,
+    DmaToRam,
+    Count
+};
 
 struct TransactionStats {
     std::uint64_t count = 0;

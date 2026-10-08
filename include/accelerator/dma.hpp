@@ -12,6 +12,7 @@ SC_MODULE(DMA) {
 
     std::vector<float> read(std::uint64_t address, std::size_t count);
     void load(std::uint64_t address, std::size_t count, SRAM& destination);
+    void store(std::uint64_t address, std::size_t count, const SRAM& source);
 
    private:
     ExternalRAM& ram;
