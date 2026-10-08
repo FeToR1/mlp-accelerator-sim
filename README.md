@@ -9,8 +9,9 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 остаются CPU/reference implementation. Новая реализация ускорителя будет
 развиваться рядом с исходной, которая останется доступной отдельно.
 
-Текущая версия содержит исходную MLP, воспроизводимую сборку, эксперимент
-на MNIST и [описание архитектуры](docs/architecture/README.md).
+Текущая версия содержит исходную MLP, отдельный C++ inference API,
+воспроизводимую сборку, эксперимент на MNIST и
+[описание архитектуры](docs/architecture/README.md).
 Компоненты ускорителя и симулятор пока не реализованы.
 
 ## Структура
@@ -18,14 +19,17 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 ```text
 CMakeLists.txt
 src/mlp/nn.cpp                     исходная MLP и привязка Python
+include/mlp/reference.hpp          публичный C++ inference API
+src/mlp/reference.cpp              Eigen FC и последовательность слоёв
+tests/                            численные проверки и сравнение с nn
 python/notebooks/mnist_experiment.ipynb
 python/scripts/check_reference.py  проверка собранного модуля
 python/scripts/profile_memory.py   профилирование памяти CPU
 docs/architecture/README.md        архитектура и схемы SVG
 ```
 
-По мере реализации появятся `include/`, `bindings/pybind/`,
-`src/accelerator/`, `src/simulator/`, `tests/` и `experiments/`.
+По мере реализации появятся `bindings/pybind/`,
+`src/accelerator/`, `src/simulator/` и `experiments/`.
 
 ## Сборка
 
@@ -40,6 +44,7 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
+cmake -E chdir build ctest -C Release --output-on-failure
 python python/scripts/check_reference.py
 ```
 
@@ -55,6 +60,30 @@ python python/scripts/check_reference.py
 Модуль собирается в `build/python/`. Скрипты и ноутбук добавляют этот
 каталог в путь импорта. Для собственного Python-кода добавьте его
 в `PYTHONPATH` или в `sys.path`.
+
+## C++ inference API
+
+Библиотека `mlp_reference` зависит от Eigen и принимает параметры явно.
+`mlp::Layer` хранит веса `[K, N]` в row-major порядке и bias `[N]`.
+`mlp::dense` вычисляет один FC-слой; `mlp::predict` последовательно выполняет
+непустой список слоёв. Параметры и входы не изменяются, градиенты и обучающие
+активации не хранятся. Несовместимые или пустые размеры вызывают
+`std::invalid_argument`. Sigmoid сохраняет формулу исходного Eigen backend.
+
+```cpp
+#include "mlp/reference.hpp"
+
+mlp::Matrix x = mlp::Matrix::Ones(2, 3);
+mlp::Layer layer{mlp::Matrix::Constant(3, 4, 0.1f),
+                 mlp::Vector::Zero(4)};
+mlp::Matrix y = mlp::dense(x, layer);       // [2, 4]
+mlp::Matrix result = mlp::predict(x, {layer});
+```
+
+CMake-потребитель подключает `target_link_libraries(app PRIVATE mlp_reference)`.
+Исходный Python-модуль `nn` остаётся отдельным. CTest проверяет FC против
+скалярных dot products, несколько слоёв, sigmoid, ошибки размеров и совпадение
+с `nn.MLP.predict` на трёх топологиях с одинаковыми входами и весами.
 
 ## Эксперимент MNIST
 
