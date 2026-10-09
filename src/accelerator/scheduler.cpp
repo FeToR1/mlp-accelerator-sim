@@ -27,6 +27,8 @@ std::vector<float> Scheduler::execute(const FCCommand& command) {
         for (std::size_t n0 = 0; n0 < n_size; n0 += lane_count) {
             const auto output_count = std::min(lane_count, n_size - n0);
             array.clear_acc();
+            bias.load(dma, command.bias_addr + n0 * sizeof(float),
+                      output_count);
             for (std::size_t k0 = 0; k0 < k_size; k0 += k_tile_size) {
                 const auto k_count = std::min(k_tile_size, k_size - k0);
                 std::vector<float> input;
@@ -47,8 +49,9 @@ std::vector<float> Scheduler::execute(const FCCommand& command) {
                            output_count);
                 array.compute();
             }
-            const auto reduced =
+            auto reduced =
                 reduction.reduce(array.pes, batch_count * lane_count);
+            bias.apply(reduced);
             for (std::size_t m = 0; m < batch_count; ++m) {
                 for (std::size_t lane = 0; lane < output_count; ++lane) {
                     result[(m0 + m) * n_size + n0 + lane] =

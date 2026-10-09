@@ -10,11 +10,11 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 развиваться рядом с исходной, которая останется доступной отдельно.
 
 Текущая версия содержит исходную MLP, конфигурацию ускорителя, FC-команду,
-RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction, упаковку весов,
+RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction, bias, упаковку весов,
 планировщик microbatch и N/K-плиток, счётчик транзакций,
 воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
-Полный FC с bias, sigmoid и записью Y пока не реализован.
+Sigmoid и запись Y через Output SRAM пока не подключены.
 
 ## Структура
 
@@ -36,6 +36,8 @@ include/accelerator/pe_array.hpp   массив PE с локальными SRAM
 src/accelerator/pe_array.cpp       распределение входов K между PE
 include/accelerator/reduction.hpp  объединение частичных сумм PE
 src/accelerator/reduction.cpp      приём блоков и дерево сложений
+include/accelerator/bias.hpp       буфер смещений выходной плитки
+src/accelerator/bias.cpp           загрузка bias и добавление после reduction
 include/accelerator/packed_weights.hpp  формат весовых плиток
 src/accelerator/packed_weights.cpp  упаковка Eigen-матрицы по плиткам и PE
 include/accelerator/scheduler.hpp   управление обработкой плиток
@@ -700,6 +702,48 @@ Model time=152, transactions=152, transferred bytes=29592
 `Gk = ceil(K/k_tile_size)`, а `Kv` — действительный размер каждой K-плитки.
 Переход к следующему microbatch повторяет передачи весов и reduction.
 Далее будет добавлен bias; sigmoid остаётся отдельным этапом.
+
+### Девятнадцатый шаг: bias
+
+[`Bias`](include/accelerator/bias.hpp) — `SC_MODULE` с общим буфером
+на `output_tile_size` FP32-значений. Для базовой конфигурации это 16 байт,
+соответствующие bias registers в архитектуре; отдельные физические регистры
+не моделируются. В RAM bias хранится обычным вектором `[N]` без упаковки.
+Его адрес задаётся `command.bias_addr`.
+
+Перед K-плитками `Scheduler` вызывает `Bias::load(dma, address, count)`.
+Загружаются только действительные смещения текущей выходной плитки,
+один раз для всех объектов microbatch. RAM → DMA учитывается существующим
+`DMA::read()`, DMA → Bias — новым типом `DmaToBias`. Загрузка повторяется
+для каждой пары microbatch/выходная плитка.
+
+После завершения всех K-плиток и reduction `Bias::apply()` принимает
+полный блок `[batch_count, output_tile_size]` через `ReductionToBias`
+и прибавляет смещение к каждому действительному выходу. Само сложение
+не продвигает model time. Bias добавляется один раз к итоговой сумме,
+а не отдельно для каждого PE или K-плитки.
+
+В `src/main.cpp` bias равен `[1, 2, 3, 4, 5]` при N=5.
+Для запуска `PE=4, K=65, N=5, M=9`:
+
+```text
+Bias buffer bytes=16, bias: 1 2 3 4 5
+Affine[0]: 69 131 -62 5 73
+Affine[8]: 613 1163 -582 13 617
+Model time=164, transactions=164, transferred bytes=29960
+DMA -> Bias: count=4, bytes=40
+Reduction -> Bias: count=4, bytes=288
+```
+
+RAM занимает 6468 байт, включая 20 байт bias. Полезные MAC остаются
+равны 2925: операции прибавления bias в этот счётчик не входят.
+По сравнению с предыдущим этапом добавляются `3 × Gm × Gn` транзакций:
+RAM → DMA, DMA → Bias и reduction → Bias для каждой пары плиток.
+В примере это 12 сообщений и 368 байт: два перехода bias по 40 байт
+и приём итоговых сумм на 288 байт.
+
+Результат пока равен `X * W_eigen + b`. Следующий этап — sigmoid LUT
+с линейной интерполяцией; выдача через Output SRAM будет отдельным шагом.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;

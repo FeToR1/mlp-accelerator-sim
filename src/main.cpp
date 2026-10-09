@@ -4,6 +4,7 @@
 #include <systemc>
 #include <vector>
 
+#include "accelerator/bias.hpp"
 #include "accelerator/command.hpp"
 #include "accelerator/config.hpp"
 #include "accelerator/dma.hpp"
@@ -38,7 +39,7 @@ SC_MODULE(PEArrayDemo) {
         }
 
         for (std::size_t m = 0; m < command.m; ++m) {
-            std::cout << "Reduced[" << m << "]:";
+            std::cout << "Affine[" << m << "]:";
             for (std::size_t lane = 0; lane < command.n; ++lane) {
                 std::cout << ' ' << result[m * command.n + lane];
             }
@@ -96,17 +97,24 @@ int sc_main(int argc, char* argv[]) {
             input[m * command.k + k] = float(m + 1);
         }
     }
+    std::vector<float> bias_values(command.n);
+    for (std::size_t n = 0; n < command.n; ++n) {
+        bias_values[n] = float(n + 1);
+    }
     command.x_addr = ram.allocate(input_count);
     command.w_addr = ram.allocate(packed.values.size());
+    command.bias_addr = ram.allocate(bias_values.size());
     ram.write(command.x_addr, input);
     ram.write(command.w_addr, packed.values);
+    ram.write(command.bias_addr, bias_values);
 
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);
     accelerator::PEArray array("array", config, transactions);
     accelerator::Reduction reduction("reduction", transactions);
-    accelerator::Scheduler scheduler("scheduler", config, dma, array,
-                                     reduction);
+    accelerator::Bias bias("bias", transactions, config.output_tile_size);
+    accelerator::Scheduler scheduler("scheduler", config, dma, array, reduction,
+                                     bias);
     PEArrayDemo demo("demo", scheduler, array, command);
 
     std::cout << "PE=" << config.pe_count
@@ -116,10 +124,16 @@ int sc_main(int argc, char* argv[]) {
     std::cout << "MAC lanes per PE=" << config.output_tile_size
               << ", ACC bytes per PE="
               << array.pes[0].acc.size() * sizeof(float) << '\n';
+    std::cout << "Bias buffer bytes=" << bias.size_bytes() << ", bias:";
+    for (const auto value : bias_values) {
+        std::cout << ' ' << value;
+    }
+    std::cout << '\n';
     std::cout << "FC: M=" << command.m << ", N=" << command.n
               << ", K=" << command.k << '\n';
     std::cout << "X address=" << command.x_addr
               << ", W address=" << command.w_addr
+              << ", bias address=" << command.bias_addr
               << ", RAM bytes=" << ram.size_bytes() << '\n';
 
     sc_core::sc_start();
@@ -143,6 +157,10 @@ int sc_main(int argc, char* argv[]) {
         transactions.stats(simulator::TransactionType::WeightSramToPe);
     const auto& pe_reduction =
         transactions.stats(simulator::TransactionType::PeToReduction);
+    const auto& dma_bias =
+        transactions.stats(simulator::TransactionType::DmaToBias);
+    const auto& reduction_bias =
+        transactions.stats(simulator::TransactionType::ReductionToBias);
     std::cout << "RAM -> DMA: count=" << ram_dma.count
               << ", bytes=" << ram_dma.bytes << '\n';
     std::cout << "DMA -> SRAM: count=" << dma_sram.count
@@ -157,5 +175,9 @@ int sc_main(int argc, char* argv[]) {
               << ", bytes=" << weight_pe.bytes << '\n';
     std::cout << "PE -> reduction: count=" << pe_reduction.count
               << ", bytes=" << pe_reduction.bytes << '\n';
+    std::cout << "DMA -> Bias: count=" << dma_bias.count
+              << ", bytes=" << dma_bias.bytes << '\n';
+    std::cout << "Reduction -> Bias: count=" << reduction_bias.count
+              << ", bytes=" << reduction_bias.bytes << '\n';
     return 0;
 }
