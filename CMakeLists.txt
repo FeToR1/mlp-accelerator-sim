@@ -38,6 +38,7 @@ add_executable(mlp_accelerator_sim
     src/accelerator/scheduler.cpp
     src/accelerator/bias.cpp
     src/accelerator/sigmoid_lut.cpp
+    src/accelerator/command_queue.cpp
     src/simulator/transactions.cpp)
 target_include_directories(mlp_accelerator_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(mlp_accelerator_sim PRIVATE cxx_std_17)

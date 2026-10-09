@@ -6,6 +6,7 @@
 
 #include "accelerator/bias.hpp"
 #include "accelerator/command.hpp"
+#include "accelerator/command_queue.hpp"
 #include "accelerator/config.hpp"
 #include "accelerator/dma.hpp"
 #include "accelerator/packed_weights.hpp"
@@ -18,28 +19,17 @@
 #include "simulator/transactions.hpp"
 
 SC_MODULE(PEArrayDemo) {
-    SC_CTOR(PEArrayDemo, accelerator::Scheduler & scheduler,
-            accelerator::PEArray & array, const accelerator::FCCommand& command)
-        : scheduler(scheduler), array(array), command(command) {
+    SC_CTOR(PEArrayDemo, accelerator::CommandQueue & queue,
+            const accelerator::FCCommand& command)
+        : queue(queue), command(command) {
         SC_THREAD(run);
     }
 
    private:
-    accelerator::Scheduler& scheduler;
-    accelerator::PEArray& array;
+    accelerator::CommandQueue& queue;
     const accelerator::FCCommand& command;
 
-    void run() {
-        std::cout << "Microbatches + N/K tiles begin: "
-                  << sc_core::sc_time_stamp() << '\n';
-        scheduler.execute(command);
-        std::cout << "Microbatches + N/K tiles end: "
-                  << sc_core::sc_time_stamp() << '\n';
-        for (std::size_t pe_id = 0; pe_id < array.pes.size(); ++pe_id) {
-            const auto& pe = array.pes[pe_id];
-            std::cout << "PE[" << pe_id << "] MAC ops=" << pe.mac_count << '\n';
-        }
-    }
+    void run() { queue.submit(command); }
 };
 
 int sc_main(int argc, char* argv[]) {
@@ -114,7 +104,8 @@ int sc_main(int argc, char* argv[]) {
         std::size_t(config.microbatch_size) * config.output_tile_size);
     accelerator::Scheduler scheduler("scheduler", config, dma, array, reduction,
                                      bias, lut, output_sram);
-    PEArrayDemo demo("demo", scheduler, array, command);
+    accelerator::CommandQueue queue("queue", scheduler, transactions);
+    PEArrayDemo demo("demo", queue, command);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
@@ -144,6 +135,12 @@ int sc_main(int argc, char* argv[]) {
 
     sc_core::sc_start();
 
+    std::cout << "Completed commands=" << queue.completed
+              << ", FIFO bytes=" << queue.size_bytes() << '\n';
+    for (std::size_t pe_id = 0; pe_id < array.pes.size(); ++pe_id) {
+        std::cout << "PE[" << pe_id
+                  << "] MAC ops=" << array.pes[pe_id].mac_count << '\n';
+    }
     const auto result =
         ram.read(command.y_addr, std::size_t(command.m) * command.n);
     for (std::size_t m = 0; m < command.m; ++m) {
@@ -181,6 +178,10 @@ int sc_main(int argc, char* argv[]) {
         transactions.stats(simulator::TransactionType::BiasToLut);
     const auto& lut_sram =
         transactions.stats(simulator::TransactionType::LutToOutputSram);
+    const auto& cpu_queue =
+        transactions.stats(simulator::TransactionType::CpuToQueue);
+    const auto& queue_scheduler =
+        transactions.stats(simulator::TransactionType::QueueToScheduler);
     std::cout << "RAM -> DMA: count=" << ram_dma.count
               << ", bytes=" << ram_dma.bytes << '\n';
     std::cout << "DMA -> SRAM: count=" << dma_sram.count
@@ -203,5 +204,9 @@ int sc_main(int argc, char* argv[]) {
               << ", bytes=" << bias_lut.bytes << '\n';
     std::cout << "LUT -> Output SRAM: count=" << lut_sram.count
               << ", bytes=" << lut_sram.bytes << '\n';
+    std::cout << "CPU -> FIFO: count=" << cpu_queue.count
+              << ", bytes=" << cpu_queue.bytes << '\n';
+    std::cout << "FIFO -> Scheduler: count=" << queue_scheduler.count
+              << ", bytes=" << queue_scheduler.bytes << '\n';
     return 0;
 }

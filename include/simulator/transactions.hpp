@@ -20,6 +20,8 @@ enum class TransactionType {
     ReductionToBias,
     BiasToLut,
     LutToOutputSram,
+    CpuToQueue,
+    QueueToScheduler,
     Count
 };
 
