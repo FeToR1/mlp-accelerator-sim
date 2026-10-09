@@ -31,11 +31,9 @@ SC_MODULE(PEArrayDemo) {
 
         const auto input =
             dma.read(command.x_addr, std::size_t(command.m) * command.k);
-        const auto weights =
-            dma.read(command.w_addr, std::size_t(command.k) * command.n);
-        std::cout << "RAM reads end: " << sc_core::sc_time_stamp() << '\n';
+        std::cout << "Input read end: " << sc_core::sc_time_stamp() << '\n';
 
-        array.load(dma, input, weights, command.m);
+        array.load(dma, input, command.w_addr, command.m);
         const auto compute_begin = sc_core::sc_time_stamp();
         array.compute();
         std::cout << "Compute: " << compute_begin << " -> "
@@ -96,13 +94,10 @@ int sc_main(int argc, char* argv[]) {
 
     accelerator::ExternalRAM ram("ram");
     const auto input_count = std::size_t(command.m) * command.k;
-    const auto weight_count = std::size_t(command.k) * command.n;
     command.x_addr = ram.allocate(input_count);
-    command.w_addr = ram.allocate(weight_count);
+    command.w_addr = ram.allocate(packed.values.size());
     ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
-    ram.write(
-        command.w_addr,
-        std::vector<float>(weights.data(), weights.data() + weights.size()));
+    ram.write(command.w_addr, packed.values);
 
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);

@@ -2,6 +2,8 @@
 
 #include <sysc/utils/sc_vector.h>
 
+#include <cstdint>
+
 #include "accelerator/config.hpp"
 #include "accelerator/dma.hpp"
 #include "accelerator/pe.hpp"
@@ -13,8 +15,8 @@ SC_MODULE(PEArray) {
             simulator::Transactions& transactions);
 
     void clear_acc();
-    void load(DMA& dma, const std::vector<float>& input,
-              const std::vector<float>& weights, std::size_t batch_count);
+    void load(DMA & dma, const std::vector<float>& input,
+              std::uint64_t weight_tile_addr, std::size_t batch_count);
     void compute();
 
     sc_core::sc_vector<PE> pes;
