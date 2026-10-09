@@ -1,4 +1,7 @@
+#include <cmath>
 #include <iostream>
+#include <random>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <systemc>
@@ -11,6 +14,7 @@
 #include "accelerator/dma.hpp"
 #include "accelerator/packed_weights.hpp"
 #include "accelerator/pe_array.hpp"
+#include "accelerator/program.hpp"
 #include "accelerator/ram.hpp"
 #include "accelerator/reduction.hpp"
 #include "accelerator/scheduler.hpp"
@@ -32,7 +36,101 @@ SC_MODULE(PEArrayDemo) {
     void run() { queue.submit(command); }
 };
 
+SC_MODULE(MLPDemo) {
+    SC_CTOR(MLPDemo, accelerator::CommandQueue & queue,
+            const accelerator::MLPProgram& program)
+        : queue(queue), program(program) {
+        SC_THREAD(run);
+    }
+
+   private:
+    accelerator::CommandQueue& queue;
+    const accelerator::MLPProgram& program;
+    void run() {
+        for (const auto& command : program.commands) {
+            queue.submit(command);
+        }
+    }
+};
+
+int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size) {
+    if (sizes.size() < 2 || batch_size <= 0) {
+        throw std::invalid_argument(
+            "MLP needs at least two widths and positive batch");
+    }
+    for (int size : sizes) {
+        if (size <= 0)
+            throw std::invalid_argument("MLP widths must be positive");
+    }
+    accelerator::AcceleratorConfig config;
+    config.pe_count = pe_count;
+    config.validate();
+    std::mt19937 generator(42);
+    std::uniform_real_distribution<float> input_distribution(-1.0f, 1.0f);
+    accelerator::WeightMatrix input(batch_size, sizes.front());
+    for (Eigen::Index i = 0; i < input.size(); ++i) {
+        input.data()[i] = input_distribution(generator);
+    }
+    std::vector<accelerator::FCLayer> layers;
+    for (std::size_t i = 1; i < sizes.size(); ++i) {
+        const auto limit = std::sqrt(6.0f / (sizes[i - 1] + sizes[i]));
+        std::uniform_real_distribution<float> distribution(-limit, limit);
+        accelerator::WeightMatrix weights(sizes[i - 1], sizes[i]);
+        for (Eigen::Index j = 0; j < weights.size(); ++j) {
+            weights.data()[j] = distribution(generator);
+        }
+        layers.push_back(
+            {std::move(weights), std::vector<float>(sizes[i], 0.0f)});
+    }
+    accelerator::ExternalRAM ram("ram");
+    const auto program = accelerator::load_mlp(ram, input, layers, config);
+    simulator::Transactions transactions;
+    accelerator::DMA dma("dma", ram, transactions);
+    accelerator::PEArray array("array", config, transactions);
+    accelerator::Reduction reduction("reduction", transactions);
+    accelerator::Bias bias("bias", transactions, config.output_tile_size);
+    accelerator::SigmoidLUT lut("lut", transactions, config.output_tile_size);
+    accelerator::SRAM output_sram(
+        "output_sram",
+        std::size_t(config.microbatch_size) * config.output_tile_size);
+    accelerator::Scheduler scheduler("scheduler", config, dma, array, reduction,
+                                     bias, lut, output_sram);
+    accelerator::CommandQueue queue("queue", scheduler, transactions);
+    MLPDemo demo("demo", queue, program);
+    sc_core::sc_start();
+    const auto& last = program.commands.back();
+    const auto output = ram.read(last.y_addr, std::size_t(last.m) * last.n);
+    std::cout << "Completed commands=" << queue.completed << ", PE=" << pe_count
+              << ", batch=" << batch_size << ", RAM bytes=" << ram.size_bytes()
+              << '\n';
+    for (std::size_t m = 0; m < last.m; ++m) {
+        std::cout << "MLP Y[" << m << "]:";
+        for (std::size_t n = 0; n < last.n; ++n) {
+            std::cout << ' ' << output[m * last.n + n];
+        }
+        std::cout << '\n';
+    }
+    for (std::size_t pe = 0; pe < array.pes.size(); ++pe) {
+        std::cout << "PE[" << pe << "] MAC ops=" << array.pes[pe].mac_count
+                  << '\n';
+    }
+    std::cout << "Model time=" << transactions.model_time()
+              << ", transactions=" << transactions.total.count
+              << ", transferred bytes=" << transactions.total.bytes << '\n';
+    return 0;
+}
+
 int sc_main(int argc, char* argv[]) {
+    if (argc > 1 && std::string(argv[1]) == "--mlp") {
+        if (argc < 3) throw std::invalid_argument("Use --mlp widths PE batch");
+        std::vector<int> sizes;
+        std::stringstream widths(argv[2]);
+        std::string value;
+        while (std::getline(widths, value, ','))
+            sizes.push_back(std::stoi(value));
+        return run_mlp(sizes, argc > 3 ? std::stoi(argv[3]) : 4,
+                       argc > 4 ? std::stoi(argv[4]) : 8);
+    }
     accelerator::AcceleratorConfig config;
     if (argc > 1) {
         config.pe_count = std::stoi(argv[1]);
