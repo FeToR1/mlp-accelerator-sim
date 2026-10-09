@@ -10,22 +10,8 @@
 #include "accelerator/accelerator.hpp"
 #include "simulator/profile.hpp"
 
-SC_MODULE(PEArrayDemo) {
-    SC_CTOR(PEArrayDemo, accelerator::CommandQueue & queue,
-            const accelerator::FCCommand& command)
-        : queue(queue), command(command) {
-        SC_THREAD(run);
-    }
-
-   private:
-    accelerator::CommandQueue& queue;
-    const accelerator::FCCommand& command;
-
-    void run() { queue.submit(command); }
-};
-
-SC_MODULE(MLPDemo) {
-    SC_CTOR(MLPDemo, accelerator::CommandQueue & queue,
+SC_MODULE(CPU) {
+    SC_CTOR(CPU, accelerator::CommandQueue & queue,
             const accelerator::MLPProgram& program)
         : queue(queue), program(program) {
         SC_THREAD(run);
@@ -73,7 +59,7 @@ int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size,
     }
     accelerator::Accelerator accel("accelerator", config);
     const auto program = accel.load(input, layers);
-    MLPDemo demo("demo", accel.queue, program);
+    CPU cpu("cpu", accel.queue, program);
     sc_core::sc_start();
     const auto& last = program.commands.back();
     const auto output =
@@ -187,7 +173,8 @@ int sc_main(int argc, char* argv[]) {
     auto& lut = accel.lut;
     auto& output_sram = accel.output_sram;
     auto& queue = accel.queue;
-    PEArrayDemo demo("demo", queue, command);
+    const accelerator::MLPProgram program{{command}};
+    CPU cpu("cpu", queue, program);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
