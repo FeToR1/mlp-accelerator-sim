@@ -30,6 +30,29 @@ struct TransactionStats {
     std::uint64_t bytes = 0;
 };
 
+struct TransactionName {
+    const char* key;
+    const char* label;
+};
+
+inline constexpr std::array<TransactionName,
+                            static_cast<std::size_t>(TransactionType::Count)>
+    transaction_names{{
+        {"RamToDma", "RAM -> DMA"},
+        {"DmaToSram", "DMA -> SRAM"},
+        {"SramToDma", "SRAM -> DMA"},
+        {"DmaToRam", "DMA -> RAM"},
+        {"InputSramToPe", "Input SRAM -> PE"},
+        {"WeightSramToPe", "Weight SRAM -> PE"},
+        {"PeToReduction", "PE -> reduction"},
+        {"DmaToBias", "DMA -> Bias"},
+        {"ReductionToBias", "Reduction -> Bias"},
+        {"BiasToLut", "Bias -> LUT"},
+        {"LutToOutputSram", "LUT -> Output SRAM"},
+        {"CpuToQueue", "CPU -> FIFO"},
+        {"QueueToScheduler", "FIFO -> Scheduler"},
+    }};
+
 class Transactions {
    public:
     void transfer(TransactionType type, std::size_t bytes);

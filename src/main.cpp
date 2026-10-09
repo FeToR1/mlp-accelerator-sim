@@ -27,6 +27,30 @@ SC_MODULE(CPU) {
     }
 };
 
+void print_pe_stats(const accelerator::PEArray& array) {
+    for (std::size_t i = 0; i < array.pes.size(); ++i) {
+        const auto& pe = array.pes[i];
+        std::cout << "PE[" << i << "] MAC ops=" << pe.mac_count
+                  << ", utilization=" << 100.0 * pe.utilization() << '%'
+                  << '\n';
+    }
+}
+
+void print_transactions(const simulator::Transactions& transactions,
+                        bool detailed = false) {
+    std::cout << "Model time=" << transactions.model_time()
+              << ", transactions=" << transactions.total.count
+              << ", transferred bytes=" << transactions.total.bytes << '\n';
+    if (!detailed) return;
+    for (std::size_t i = 0; i < simulator::transaction_names.size(); ++i) {
+        const auto& stats =
+            transactions.stats(static_cast<simulator::TransactionType>(i));
+        std::cout << simulator::transaction_names[i].label
+                  << ": count=" << stats.count << ", bytes=" << stats.bytes
+                  << '\n';
+    }
+}
+
 int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size,
             const std::string& profile_path) {
     if (sizes.size() < 2 || batch_size <= 0) {
@@ -74,16 +98,8 @@ int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size,
         }
         std::cout << '\n';
     }
-    for (std::size_t pe = 0; pe < accel.array.pes.size(); ++pe) {
-        std::cout << "PE[" << pe
-                  << "] MAC ops=" << accel.array.pes[pe].mac_count
-                  << ", utilization="
-                  << 100.0 * accel.array.pes[pe].utilization() << '%' << '\n';
-    }
-    std::cout << "Model time=" << accel.transactions.model_time()
-              << ", transactions=" << accel.transactions.total.count
-              << ", transferred bytes=" << accel.transactions.total.bytes
-              << '\n';
+    print_pe_stats(accel.array);
+    print_transactions(accel.transactions);
     if (!profile_path.empty()) simulator::write_profile(accel, profile_path);
     return 0;
 }
@@ -206,12 +222,7 @@ int sc_main(int argc, char* argv[]) {
 
     std::cout << "Completed commands=" << queue.completed
               << ", FIFO bytes=" << queue.size_bytes() << '\n';
-    for (std::size_t pe_id = 0; pe_id < array.pes.size(); ++pe_id) {
-        std::cout << "PE[" << pe_id
-                  << "] MAC ops=" << array.pes[pe_id].mac_count
-                  << ", utilization=" << 100.0 * array.pes[pe_id].utilization()
-                  << '%' << '\n';
-    }
+    print_pe_stats(array);
     const auto result =
         ram.read(command.y_addr, std::size_t(command.m) * command.n);
     for (std::size_t m = 0; m < command.m; ++m) {
@@ -223,62 +234,7 @@ int sc_main(int argc, char* argv[]) {
     }
 
     std::cout << "SystemC time=" << sc_core::sc_time_stamp() << '\n';
-    std::cout << "Model time=" << transactions.model_time()
-              << ", transactions=" << transactions.total.count
-              << ", transferred bytes=" << transactions.total.bytes << '\n';
-
-    const auto& ram_dma =
-        transactions.stats(simulator::TransactionType::RamToDma);
-    const auto& dma_sram =
-        transactions.stats(simulator::TransactionType::DmaToSram);
-    const auto& sram_dma =
-        transactions.stats(simulator::TransactionType::SramToDma);
-    const auto& dma_ram =
-        transactions.stats(simulator::TransactionType::DmaToRam);
-    const auto& input_pe =
-        transactions.stats(simulator::TransactionType::InputSramToPe);
-    const auto& weight_pe =
-        transactions.stats(simulator::TransactionType::WeightSramToPe);
-    const auto& pe_reduction =
-        transactions.stats(simulator::TransactionType::PeToReduction);
-    const auto& dma_bias =
-        transactions.stats(simulator::TransactionType::DmaToBias);
-    const auto& reduction_bias =
-        transactions.stats(simulator::TransactionType::ReductionToBias);
-    const auto& bias_lut =
-        transactions.stats(simulator::TransactionType::BiasToLut);
-    const auto& lut_sram =
-        transactions.stats(simulator::TransactionType::LutToOutputSram);
-    const auto& cpu_queue =
-        transactions.stats(simulator::TransactionType::CpuToQueue);
-    const auto& queue_scheduler =
-        transactions.stats(simulator::TransactionType::QueueToScheduler);
-    std::cout << "RAM -> DMA: count=" << ram_dma.count
-              << ", bytes=" << ram_dma.bytes << '\n';
-    std::cout << "DMA -> SRAM: count=" << dma_sram.count
-              << ", bytes=" << dma_sram.bytes << '\n';
-    std::cout << "SRAM -> DMA: count=" << sram_dma.count
-              << ", bytes=" << sram_dma.bytes << '\n';
-    std::cout << "DMA -> RAM: count=" << dma_ram.count
-              << ", bytes=" << dma_ram.bytes << '\n';
-    std::cout << "Input SRAM -> PE: count=" << input_pe.count
-              << ", bytes=" << input_pe.bytes << '\n';
-    std::cout << "Weight SRAM -> PE: count=" << weight_pe.count
-              << ", bytes=" << weight_pe.bytes << '\n';
-    std::cout << "PE -> reduction: count=" << pe_reduction.count
-              << ", bytes=" << pe_reduction.bytes << '\n';
-    std::cout << "DMA -> Bias: count=" << dma_bias.count
-              << ", bytes=" << dma_bias.bytes << '\n';
-    std::cout << "Reduction -> Bias: count=" << reduction_bias.count
-              << ", bytes=" << reduction_bias.bytes << '\n';
-    std::cout << "Bias -> LUT: count=" << bias_lut.count
-              << ", bytes=" << bias_lut.bytes << '\n';
-    std::cout << "LUT -> Output SRAM: count=" << lut_sram.count
-              << ", bytes=" << lut_sram.bytes << '\n';
-    std::cout << "CPU -> FIFO: count=" << cpu_queue.count
-              << ", bytes=" << cpu_queue.bytes << '\n';
-    std::cout << "FIFO -> Scheduler: count=" << queue_scheduler.count
-              << ", bytes=" << queue_scheduler.bytes << '\n';
+    print_transactions(transactions, true);
     if (!profile_path.empty()) simulator::write_profile(accel, profile_path);
     return 0;
 }

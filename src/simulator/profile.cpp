@@ -53,19 +53,13 @@ void write_profile(const accelerator::Accelerator& accel,
             << ", \"capacity_macs\": " << pe.mac_capacity
             << ", \"utilization\": " << pe.utilization() << '}';
     }
-    constexpr std::array<const char*,
-                         static_cast<std::size_t>(TransactionType::Count)>
-        names{"RamToDma",        "DmaToSram",       "SramToDma",
-              "DmaToRam",        "InputSramToPe",   "WeightSramToPe",
-              "PeToReduction",   "DmaToBias",       "ReductionToBias",
-              "BiasToLut",       "LutToOutputSram", "CpuToQueue",
-              "QueueToScheduler"};
     out << "\n  ],\n  \"by_type\": {";
-    for (std::size_t i = 0; i < names.size(); ++i) {
+    for (std::size_t i = 0; i < transaction_names.size(); ++i) {
         if (i) out << ',';
         const auto& stats =
             accel.transactions.stats(static_cast<TransactionType>(i));
-        out << "\n    \"" << names[i] << "\": {\"count\": " << stats.count
+        out << "\n    \"" << transaction_names[i].key
+            << "\": {\"count\": " << stats.count
             << ", \"bytes\": " << stats.bytes << '}';
     }
     out << "\n  }\n}\n";
