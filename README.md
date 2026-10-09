@@ -11,7 +11,7 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 
 Текущая версия содержит исходную MLP, конфигурацию ускорителя, FC-команду,
 RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction, упаковку весов,
-планировщик N/K-плиток и счётчик транзакций,
+планировщик microbatch и N/K-плиток, счётчик транзакций,
 воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
 Полный FC с bias, sigmoid и записью Y пока не реализован.
@@ -39,7 +39,7 @@ src/accelerator/reduction.cpp      приём блоков и дерево сл�
 include/accelerator/packed_weights.hpp  формат весовых плиток
 src/accelerator/packed_weights.cpp  упаковка Eigen-матрицы по плиткам и PE
 include/accelerator/scheduler.hpp   управление обработкой плиток
-src/accelerator/scheduler.cpp       обход N/K-плиток с сохранением ACC
+src/accelerator/scheduler.cpp       обход microbatch и N/K-плиток
 include/simulator/transactions.hpp типы обменов и статистика
 src/simulator/transactions.cpp     ожидание и учёт передач
 python/notebooks/mnist_experiment.ipynb
@@ -645,6 +645,61 @@ Model time=66, transactions=66, transferred bytes=10576
 остаются такими же, как для полной, несмотря на меньшее число полезных MAC.
 
 Следующий этап — разбиение M на несколько microbatch.
+
+### Восемнадцатый шаг: microbatch scheduling
+
+`Scheduler::execute()` обрабатывает произвольные положительные M/N/K.
+Внешний цикл разбивает M с шагом `microbatch_size`; для каждой группы
+выполняется прежний обход N/K-плиток. Последняя группа содержит
+`batch_count = min(microbatch_size, M-m0)` объектов.
+
+Для загрузки X используется глобальная строка `m0 + m`, а внутри PE
+объекты нумеруются с нуля. Адрес фрагмента —
+`x_addr + ((m0+m) × K + k0) × sizeof(float)`.
+Reduction получает только `batch_count × output_tile_size` значений ACC
+каждого PE; локальная строка результата записывается в глобальную строку
+`m0 + m` возвращаемого массива `[M,N]`.
+
+ACC очищаются перед каждой парой microbatch/выходная плитка, но сохраняются
+между её K-плитками. Веса загружаются заново для каждого microbatch,
+переиспользуясь его объектами. Размеры локальных SRAM и ACC не зависят от M;
+временный входной блок содержит только текущую microbatch/K-плитку.
+Полная матрица линейных сумм возвращается в памяти C++ для вывода примера;
+Output SRAM и запись Y в RAM ещё не подключены.
+
+В примере по умолчанию `M=9, N=5, K=65`: группы из восьми и одного объекта.
+Аргументы запуска имеют порядок `PE K N M`:
+
+```powershell
+.\build\mlp_accelerator_sim.exe 4 65 5 9
+```
+
+```text
+PE[0] MAC ops=765
+PE[1] MAC ops=720
+PE[2] MAC ops=720
+PE[3] MAC ops=720
+Reduced[0]: 68 129 -65 1 68
+Reduced[8]: 612 1161 -585 9 612
+Model time=152, transactions=152, transferred bytes=29592
+```
+
+Всего выполняется `9 × 65 × 5 = 2925` полезных MAC. ACC занимает
+128 байт на PE; packed weights — 4096 байт, RAM с X и выравниванием — 6448 байт.
+Для четырёх PE при N=5, K=65:
+
+| M | Microbatch | Транзакции / model time | Переданные байты |
+|---:|---|---:|---:|
+| 1 | 1 | 62 | 8888 |
+| 8 | 8 | 90 | 20704 |
+| 9 | 8 + 1 | 152 | 29592 |
+
+Число сообщений равно
+`Gn × (M × Gk + Gm × (5 × sum(min(pe_count, Kv)) + pe_count))`,
+где `Gm = ceil(M/microbatch_size)`, `Gn = ceil(N/output_tile_size)`,
+`Gk = ceil(K/k_tile_size)`, а `Kv` — действительный размер каждой K-плитки.
+Переход к следующему microbatch повторяет передачи весов и reduction.
+Далее будет добавлен bias; sigmoid остаётся отдельным этапом.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;
