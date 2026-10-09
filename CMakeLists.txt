@@ -35,6 +35,7 @@ add_executable(mlp_accelerator_sim
     src/accelerator/pe_array.cpp
     src/accelerator/reduction.cpp
     src/accelerator/packed_weights.cpp
+    src/accelerator/scheduler.cpp
     src/simulator/transactions.cpp)
 target_include_directories(mlp_accelerator_sim PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(mlp_accelerator_sim PRIVATE cxx_std_17)

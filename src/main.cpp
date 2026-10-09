@@ -1,6 +1,8 @@
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <systemc>
+#include <vector>
 
 #include "accelerator/command.hpp"
 #include "accelerator/config.hpp"
@@ -9,35 +11,26 @@
 #include "accelerator/pe_array.hpp"
 #include "accelerator/ram.hpp"
 #include "accelerator/reduction.hpp"
+#include "accelerator/scheduler.hpp"
 #include "simulator/transactions.hpp"
 
 SC_MODULE(PEArrayDemo) {
-    SC_CTOR(PEArrayDemo, accelerator::DMA & dma, accelerator::PEArray & array,
-            accelerator::Reduction & reduction,
-            const accelerator::FCCommand& command)
-        : dma(dma), array(array), reduction(reduction), command(command) {
+    SC_CTOR(PEArrayDemo, accelerator::Scheduler & scheduler,
+            accelerator::PEArray & array, const accelerator::FCCommand& command)
+        : scheduler(scheduler), array(array), command(command) {
         SC_THREAD(run);
     }
 
    private:
-    accelerator::DMA& dma;
+    accelerator::Scheduler& scheduler;
     accelerator::PEArray& array;
-    accelerator::Reduction& reduction;
     const accelerator::FCCommand& command;
 
     void run() {
-        std::cout << "Load begin: " << sc_core::sc_time_stamp() << '\n';
-        array.clear_acc();
-
-        const auto input =
-            dma.read(command.x_addr, std::size_t(command.m) * command.k);
-        std::cout << "Input read end: " << sc_core::sc_time_stamp() << '\n';
-
-        array.load(dma, input, command.w_addr, command.m);
-        const auto compute_begin = sc_core::sc_time_stamp();
-        array.compute();
-        std::cout << "Compute: " << compute_begin << " -> "
-                  << sc_core::sc_time_stamp() << '\n';
+        std::cout << "K tiles begin: " << sc_core::sc_time_stamp() << '\n';
+        const auto result = scheduler.execute(command);
+        std::cout << "K tiles + reduction end: " << sc_core::sc_time_stamp()
+                  << '\n';
         for (std::size_t pe_id = 0; pe_id < array.pes.size(); ++pe_id) {
             const auto& pe = array.pes[pe_id];
             std::cout << "PE[" << pe_id << "] MAC ops=" << pe.mac_count << '\n';
@@ -50,9 +43,6 @@ SC_MODULE(PEArrayDemo) {
             }
         }
 
-        const auto result =
-            reduction.reduce(array.pes, std::size_t(command.m) * command.n);
-        std::cout << "Reduction end: " << sc_core::sc_time_stamp() << '\n';
         for (std::size_t m = 0; m < command.m; ++m) {
             std::cout << "Reduced[" << m << "]:";
             for (std::size_t lane = 0; lane < command.n; ++lane) {
@@ -73,11 +63,17 @@ int sc_main(int argc, char* argv[]) {
     accelerator::FCCommand command;
     command.m = 2;
     command.n = config.output_tile_size;
-    command.k = 3;
+    const auto k_size = argc > 2 ? std::stoi(argv[2]) : config.k_tile_size + 1;
+    if (k_size <= 0) {
+        throw std::invalid_argument("K must be positive");
+    }
+    command.k = k_size;
 
     accelerator::WeightMatrix weights(command.k, command.n);
-    weights << 4.0f, 1.0f, -1.0f, 0.0f, 5.0f, 0.0f, -1.0f, 1.0f, 6.0f, 1.0f,
-        -1.0f, 0.0f;
+    for (std::size_t k = 0; k < command.k; ++k) {
+        weights.row(k) << 1.0f, 2.0f, -1.0f, 0.0f;
+    }
+    weights.row(command.k - 1) << 4.0f, 1.0f, -1.0f, 1.0f;
     const auto packed = accelerator::pack_weights(weights, config);
     std::cout << "Packed weights: N tiles=" << packed.n_tiles
               << ", K tiles=" << packed.k_tiles
@@ -94,16 +90,24 @@ int sc_main(int argc, char* argv[]) {
 
     accelerator::ExternalRAM ram("ram");
     const auto input_count = std::size_t(command.m) * command.k;
+    std::vector<float> input(input_count);
+    for (std::size_t m = 0; m < command.m; ++m) {
+        for (std::size_t k = 0; k < command.k; ++k) {
+            input[m * command.k + k] = float(m + 1);
+        }
+    }
     command.x_addr = ram.allocate(input_count);
     command.w_addr = ram.allocate(packed.values.size());
-    ram.write(command.x_addr, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+    ram.write(command.x_addr, input);
     ram.write(command.w_addr, packed.values);
 
     simulator::Transactions transactions;
     accelerator::DMA dma("dma", ram, transactions);
     accelerator::PEArray array("array", config, transactions);
     accelerator::Reduction reduction("reduction", transactions);
-    PEArrayDemo demo("demo", dma, array, reduction, command);
+    accelerator::Scheduler scheduler("scheduler", config, dma, array,
+                                     reduction);
+    PEArrayDemo demo("demo", scheduler, array, command);
 
     std::cout << "PE=" << config.pe_count
               << ", microbatch=" << config.microbatch_size
