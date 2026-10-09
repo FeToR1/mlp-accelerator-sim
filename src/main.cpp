@@ -7,20 +7,7 @@
 #include <systemc>
 #include <vector>
 
-#include "accelerator/bias.hpp"
-#include "accelerator/command.hpp"
-#include "accelerator/command_queue.hpp"
-#include "accelerator/config.hpp"
-#include "accelerator/dma.hpp"
-#include "accelerator/packed_weights.hpp"
-#include "accelerator/pe_array.hpp"
-#include "accelerator/program.hpp"
-#include "accelerator/ram.hpp"
-#include "accelerator/reduction.hpp"
-#include "accelerator/scheduler.hpp"
-#include "accelerator/sigmoid_lut.hpp"
-#include "accelerator/sram.hpp"
-#include "simulator/transactions.hpp"
+#include "accelerator/accelerator.hpp"
 
 SC_MODULE(PEArrayDemo) {
     SC_CTOR(PEArrayDemo, accelerator::CommandQueue & queue,
@@ -82,27 +69,16 @@ int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size) {
         layers.push_back(
             {std::move(weights), std::vector<float>(sizes[i], 0.0f)});
     }
-    accelerator::ExternalRAM ram("ram");
-    const auto program = accelerator::load_mlp(ram, input, layers, config);
-    simulator::Transactions transactions;
-    accelerator::DMA dma("dma", ram, transactions);
-    accelerator::PEArray array("array", config, transactions);
-    accelerator::Reduction reduction("reduction", transactions);
-    accelerator::Bias bias("bias", transactions, config.output_tile_size);
-    accelerator::SigmoidLUT lut("lut", transactions, config.output_tile_size);
-    accelerator::SRAM output_sram(
-        "output_sram",
-        std::size_t(config.microbatch_size) * config.output_tile_size);
-    accelerator::Scheduler scheduler("scheduler", config, dma, array, reduction,
-                                     bias, lut, output_sram);
-    accelerator::CommandQueue queue("queue", scheduler, transactions);
-    MLPDemo demo("demo", queue, program);
+    accelerator::Accelerator accel("accelerator", config);
+    const auto program = accel.load(input, layers);
+    MLPDemo demo("demo", accel.queue, program);
     sc_core::sc_start();
     const auto& last = program.commands.back();
-    const auto output = ram.read(last.y_addr, std::size_t(last.m) * last.n);
-    std::cout << "Completed commands=" << queue.completed << ", PE=" << pe_count
-              << ", batch=" << batch_size << ", RAM bytes=" << ram.size_bytes()
-              << '\n';
+    const auto output =
+        accel.ram.read(last.y_addr, std::size_t(last.m) * last.n);
+    std::cout << "Completed commands=" << accel.queue.completed
+              << ", PE=" << pe_count << ", batch=" << batch_size
+              << ", RAM bytes=" << accel.ram.size_bytes() << '\n';
     for (std::size_t m = 0; m < last.m; ++m) {
         std::cout << "MLP Y[" << m << "]:";
         for (std::size_t n = 0; n < last.n; ++n) {
@@ -110,13 +86,14 @@ int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size) {
         }
         std::cout << '\n';
     }
-    for (std::size_t pe = 0; pe < array.pes.size(); ++pe) {
-        std::cout << "PE[" << pe << "] MAC ops=" << array.pes[pe].mac_count
-                  << '\n';
+    for (std::size_t pe = 0; pe < accel.array.pes.size(); ++pe) {
+        std::cout << "PE[" << pe
+                  << "] MAC ops=" << accel.array.pes[pe].mac_count << '\n';
     }
-    std::cout << "Model time=" << transactions.model_time()
-              << ", transactions=" << transactions.total.count
-              << ", transferred bytes=" << transactions.total.bytes << '\n';
+    std::cout << "Model time=" << accel.transactions.model_time()
+              << ", transactions=" << accel.transactions.total.count
+              << ", transferred bytes=" << accel.transactions.total.bytes
+              << '\n';
     return 0;
 }
 
@@ -171,7 +148,8 @@ int sc_main(int argc, char* argv[]) {
         std::cout << '\n';
     }
 
-    accelerator::ExternalRAM ram("ram");
+    accelerator::Accelerator accel("accelerator", config);
+    auto& ram = accel.ram;
     const auto input_count = std::size_t(command.m) * command.k;
     std::vector<float> input(input_count);
     for (std::size_t m = 0; m < command.m; ++m) {
@@ -191,18 +169,12 @@ int sc_main(int argc, char* argv[]) {
     ram.write(command.w_addr, packed.values);
     ram.write(command.bias_addr, bias_values);
 
-    simulator::Transactions transactions;
-    accelerator::DMA dma("dma", ram, transactions);
-    accelerator::PEArray array("array", config, transactions);
-    accelerator::Reduction reduction("reduction", transactions);
-    accelerator::Bias bias("bias", transactions, config.output_tile_size);
-    accelerator::SigmoidLUT lut("lut", transactions, config.output_tile_size);
-    accelerator::SRAM output_sram(
-        "output_sram",
-        std::size_t(config.microbatch_size) * config.output_tile_size);
-    accelerator::Scheduler scheduler("scheduler", config, dma, array, reduction,
-                                     bias, lut, output_sram);
-    accelerator::CommandQueue queue("queue", scheduler, transactions);
+    auto& transactions = accel.transactions;
+    auto& array = accel.array;
+    auto& bias = accel.bias;
+    auto& lut = accel.lut;
+    auto& output_sram = accel.output_sram;
+    auto& queue = accel.queue;
     PEArrayDemo demo("demo", queue, command);
 
     std::cout << "PE=" << config.pe_count
