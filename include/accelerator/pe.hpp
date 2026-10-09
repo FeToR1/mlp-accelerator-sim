@@ -31,6 +31,11 @@ SC_MODULE(PE) {
     SRAM weight_sram;
     std::vector<float> acc;
     std::uint64_t mac_count = 0;
+    std::uint64_t mac_capacity = 0;
+
+    double utilization() const {
+        return mac_capacity ? double(mac_count) / mac_capacity : 0.0;
+    }
 
    private:
     simulator::Transactions& transactions;

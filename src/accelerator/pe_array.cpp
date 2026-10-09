@@ -42,6 +42,10 @@ void PEArray::load(DMA& dma, const std::vector<float>& input,
     const auto local_k_capacity =
         (std::size_t(config.k_tile_size) + pes.size() - 1) / pes.size();
     const auto weight_block_count = local_k_capacity * lane_count;
+    for (auto& pe : pes) {
+        pe.mac_capacity +=
+            std::uint64_t(config.microbatch_size) * weight_block_count;
+    }
     active_count = std::min(pes.size(), k_count);
     for (std::size_t pe_id = 0; pe_id < active_count; ++pe_id) {
         std::vector<float> local_input;

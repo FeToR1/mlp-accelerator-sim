@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "accelerator/accelerator.hpp"
+#include "simulator/profile.hpp"
 
 SC_MODULE(PEArrayDemo) {
     SC_CTOR(PEArrayDemo, accelerator::CommandQueue & queue,
@@ -40,7 +41,8 @@ SC_MODULE(MLPDemo) {
     }
 };
 
-int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size) {
+int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size,
+            const std::string& profile_path) {
     if (sizes.size() < 2 || batch_size <= 0) {
         throw std::invalid_argument(
             "MLP needs at least two widths and positive batch");
@@ -88,16 +90,26 @@ int run_mlp(const std::vector<int>& sizes, int pe_count, int batch_size) {
     }
     for (std::size_t pe = 0; pe < accel.array.pes.size(); ++pe) {
         std::cout << "PE[" << pe
-                  << "] MAC ops=" << accel.array.pes[pe].mac_count << '\n';
+                  << "] MAC ops=" << accel.array.pes[pe].mac_count
+                  << ", utilization="
+                  << 100.0 * accel.array.pes[pe].utilization() << '%' << '\n';
     }
     std::cout << "Model time=" << accel.transactions.model_time()
               << ", transactions=" << accel.transactions.total.count
               << ", transferred bytes=" << accel.transactions.total.bytes
               << '\n';
+    if (!profile_path.empty()) simulator::write_profile(accel, profile_path);
     return 0;
 }
 
 int sc_main(int argc, char* argv[]) {
+    std::string profile_path;
+    if (argc > 5) {
+        if (argc != 7 || std::string(argv[5]) != "--profile")
+            throw std::invalid_argument(
+                "Append --profile path.json after PE/dimensions");
+        profile_path = argv[6];
+    }
     if (argc > 1 && std::string(argv[1]) == "--mlp") {
         if (argc < 3) throw std::invalid_argument("Use --mlp widths PE batch");
         std::vector<int> sizes;
@@ -106,7 +118,7 @@ int sc_main(int argc, char* argv[]) {
         while (std::getline(widths, value, ','))
             sizes.push_back(std::stoi(value));
         return run_mlp(sizes, argc > 3 ? std::stoi(argv[3]) : 4,
-                       argc > 4 ? std::stoi(argv[4]) : 8);
+                       argc > 4 ? std::stoi(argv[4]) : 8, profile_path);
     }
     accelerator::AcceleratorConfig config;
     if (argc > 1) {
@@ -209,7 +221,9 @@ int sc_main(int argc, char* argv[]) {
               << ", FIFO bytes=" << queue.size_bytes() << '\n';
     for (std::size_t pe_id = 0; pe_id < array.pes.size(); ++pe_id) {
         std::cout << "PE[" << pe_id
-                  << "] MAC ops=" << array.pes[pe_id].mac_count << '\n';
+                  << "] MAC ops=" << array.pes[pe_id].mac_count
+                  << ", utilization=" << 100.0 * array.pes[pe_id].utilization()
+                  << '%' << '\n';
     }
     const auto result =
         ram.read(command.y_addr, std::size_t(command.m) * command.n);
@@ -278,5 +292,6 @@ int sc_main(int argc, char* argv[]) {
               << ", bytes=" << cpu_queue.bytes << '\n';
     std::cout << "FIFO -> Scheduler: count=" << queue_scheduler.count
               << ", bytes=" << queue_scheduler.bytes << '\n';
+    if (!profile_path.empty()) simulator::write_profile(accel, profile_path);
     return 0;
 }
