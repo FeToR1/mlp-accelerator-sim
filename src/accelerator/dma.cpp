@@ -21,14 +21,17 @@ void DMA::load(std::uint64_t address, std::size_t count, SRAM& destination) {
     write(destination, block);
 }
 
-void DMA::store(std::uint64_t address, std::size_t count, const SRAM& source) {
+void DMA::store(std::uint64_t address, std::size_t count, const SRAM& source,
+                std::size_t source_offset) {
     const auto& values = source.read();
-    if (count > values.size()) {
+    if (source_offset > values.size() ||
+        count > values.size() - source_offset) {
         throw std::out_of_range("SRAM read exceeds capacity");
     }
     transactions.transfer(simulator::TransactionType::SramToDma,
                           count * sizeof(float));
-    const std::vector<float> block(values.begin(), values.begin() + count);
+    const std::vector<float> block(values.begin() + source_offset,
+                                   values.begin() + source_offset + count);
     transactions.transfer(simulator::TransactionType::DmaToRam,
                           block.size() * sizeof(float));
     ram.write(address, block);

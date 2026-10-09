@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "accelerator/sram.hpp"
 #include "simulator/transactions.hpp"
 
 namespace accelerator {
@@ -22,7 +23,8 @@ SC_MODULE(SigmoidLUT) {
             std::size_t lane_count);
 
     float lookup(float value) const;
-    void apply(std::vector<float> & sums, std::size_t output_count);
+    void apply(const std::vector<float>& sums, std::size_t output_count,
+               SRAM& output);
     std::size_t size_bytes() const { return table.size() * sizeof(float); }
 
    private:

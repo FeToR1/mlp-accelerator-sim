@@ -10,12 +10,12 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 развиваться рядом с исходной, которая останется доступной отдельно.
 
 Текущая версия содержит исходную MLP, конфигурацию ускорителя, FC-команду,
-RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction, bias, sigmoid LUT,
+RAM, DMA, локальные и Output SRAM, параметризуемый массив PE, reduction, bias, sigmoid LUT,
 упаковку весов,
 планировщик microbatch и N/K-плиток, счётчик транзакций,
 воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
-Запись Y через Output SRAM пока не подключена.
+Одна FC-команда выполняется полностью с записью Y в RAM; FIFO команд ещё не добавлена.
 
 ## Структура
 
@@ -44,7 +44,7 @@ src/accelerator/sigmoid_lut.cpp     инициализация таблицы и
 include/accelerator/packed_weights.hpp  формат весовых плиток
 src/accelerator/packed_weights.cpp  упаковка Eigen-матрицы по плиткам и PE
 include/accelerator/scheduler.hpp   управление обработкой плиток
-src/accelerator/scheduler.cpp       обход microbatch и N/K-плиток
+src/accelerator/scheduler.cpp       обход microbatch/N/K-плиток и запись Y
 include/simulator/transactions.hpp типы обменов и статистика
 src/simulator/transactions.cpp     ожидание и учёт передач
 python/notebooks/mnist_experiment.ipynb
@@ -796,6 +796,56 @@ RAM по-прежнему занимает 6468 байт, ROM учитывает
 
 Результат `sigmoid(X * W_eigen + b)` пока возвращается в массиве C++.
 Следующий этап — передача через Output SRAM и запись Y в RAM.
+
+### Двадцать первый шаг: Output SRAM и Y в RAM
+
+Общая `SRAM output_sram` хранит одну плитку результатов. Ёмкость равна
+`microbatch_size × output_tile_size` FP32-значений — 128 байт для базовой
+конфигурации. Используется один буфер; планировщик ждёт окончания всей
+выгрузки перед следующей плиткой.
+
+После получения блока из Bias `SigmoidLUT::apply(sums, output_count, output_sram)`
+вычисляет sigmoid и собирает действительные выходы подряд в порядке
+`[local_m][valid_lane]`. При неполной выходной плитке шаг строк здесь равен
+`output_count`, а не полной ширине ACC. Одна передача `LutToOutputSram`
+записывает только действительные значения в Output SRAM.
+
+`DMA::store(address, count, source, source_offset)` выгружает фрагмент SRAM
+через SRAM → DMA → RAM. Смещение `source_offset` задаётся в словах FP32;
+прежние вызовы без него используют ноль. Для каждой строки текущей плитки:
+
+```text
+source_offset = local_m * output_count
+Y address = y_addr + ((m0 + local_m) * N + n0) * sizeof(float)
+count = output_count
+```
+
+Y хранится обычной матрицей row-major `[M,N]`; padding в RAM не записывается.
+`Scheduler::execute()` теперь возвращает `void` и завершает вызов только
+после записи всех результатов. Матрица Y больше не накапливается внутри
+планировщика. `src/main.cpp` выделяет её по `command.y_addr` и после
+`sc_start()` читает RAM для вывода; это чтение CPU не добавляет обменов модели.
+
+Для `PE=4, K=65, N=5, M=9`:
+
+```text
+Output SRAM bytes=128
+Y RAM[0]: 1 1 0 0.993307 1
+Y RAM[8]: 1 1 0 0.999998 1
+Model time=208, transactions=208, transferred bytes=30788
+SRAM -> DMA: count=18, bytes=180
+DMA -> RAM: count=18, bytes=180
+LUT -> Output SRAM: count=4, bytes=180
+```
+
+RAM занимает 6660 байт, включая 180 байт Y и выравнивание блоков.
+По сравнению с этапом LUT добавляются `Gm × Gn + 2 × M × Gn` сообщений
+и `3 × M × N × sizeof(float)` переданных байт. В примере это 40 сообщений
+и 540 байт: одни и те же выходы проходят три границы компонентов.
+
+Полный путь одной FC-команды теперь включает RAM, DMA, локальные SRAM,
+PE/ACC, reduction, bias, sigmoid LUT, Output SRAM и запись в RAM.
+Следующий этап — FIFO команд.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;

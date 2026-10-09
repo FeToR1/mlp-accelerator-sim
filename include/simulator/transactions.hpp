@@ -19,6 +19,7 @@ enum class TransactionType {
     DmaToBias,
     ReductionToBias,
     BiasToLut,
+    LutToOutputSram,
     Count
 };
 

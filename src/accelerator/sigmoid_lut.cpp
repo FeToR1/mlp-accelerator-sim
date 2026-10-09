@@ -34,20 +34,25 @@ float SigmoidLUT::lookup(float value) const {
     return table[index] + fraction * (table[index + 1] - table[index]);
 }
 
-void SigmoidLUT::apply(std::vector<float>& sums, std::size_t output_count) {
+void SigmoidLUT::apply(const std::vector<float>& sums, std::size_t output_count,
+                       SRAM& output) {
     if (output_count == 0 || output_count > lane_count || sums.empty() ||
         sums.size() % lane_count != 0) {
         throw std::invalid_argument("Sigmoid block must fit output tile");
     }
     transactions.transfer(simulator::TransactionType::BiasToLut,
                           sums.size() * sizeof(float));
+    std::vector<float> values;
+    values.reserve(sums.size() / lane_count * output_count);
     // LUT без продвижения model time
     for (std::size_t m = 0; m < sums.size() / lane_count; ++m) {
         for (std::size_t lane = 0; lane < output_count; ++lane) {
-            auto& value = sums[m * lane_count + lane];
-            value = lookup(value);
+            values.push_back(lookup(sums[m * lane_count + lane]));
         }
     }
+    transactions.transfer(simulator::TransactionType::LutToOutputSram,
+                          values.size() * sizeof(float));
+    output.write(values);
 }
 
 }

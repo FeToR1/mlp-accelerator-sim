@@ -2,10 +2,11 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 namespace accelerator {
 
-std::vector<float> Scheduler::execute(const FCCommand& command) {
+void Scheduler::execute(const FCCommand& command) {
     if (command.m == 0 || command.n == 0 || command.k == 0) {
         throw std::invalid_argument("FC dimensions must be positive");
     }
@@ -21,7 +22,6 @@ std::vector<float> Scheduler::execute(const FCCommand& command) {
     const auto weight_tile_count =
         local_k_capacity * config.pe_count * config.output_tile_size;
 
-    std::vector<float> result(m_size * n_size);
     for (std::size_t m0 = 0; m0 < m_size; m0 += microbatch_size) {
         const auto batch_count = std::min(microbatch_size, m_size - m0);
         for (std::size_t n0 = 0; n0 < n_size; n0 += lane_count) {
@@ -52,16 +52,14 @@ std::vector<float> Scheduler::execute(const FCCommand& command) {
             auto reduced =
                 reduction.reduce(array.pes, batch_count * lane_count);
             bias.apply(reduced);
-            lut.apply(reduced, output_count);
+            lut.apply(reduced, output_count, output_sram);
             for (std::size_t m = 0; m < batch_count; ++m) {
-                for (std::size_t lane = 0; lane < output_count; ++lane) {
-                    result[(m0 + m) * n_size + n0 + lane] =
-                        reduced[m * lane_count + lane];
-                }
+                const auto address =
+                    command.y_addr + ((m0 + m) * n_size + n0) * sizeof(float);
+                dma.store(address, output_count, output_sram, m * output_count);
             }
         }
     }
-    return result;
 }
 
 }
