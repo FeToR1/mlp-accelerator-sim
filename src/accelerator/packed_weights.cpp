@@ -33,23 +33,16 @@ PackedWeights pack_weights(const Eigen::Ref<const WeightMatrix>& weights,
                              packed.local_k_size * lane_count,
                          0.0f);
 
-    for (std::size_t n_tile = 0; n_tile < packed.n_tiles; ++n_tile) {
-        for (std::size_t k_tile = 0; k_tile < packed.k_tiles; ++k_tile) {
-            for (std::size_t pe = 0; pe < pe_count; ++pe) {
-                const auto base = packed.offset(n_tile, k_tile, pe);
-                for (std::size_t local_k = 0; local_k < packed.local_k_size;
-                     ++local_k) {
-                    const auto tile_k = local_k * pe_count + pe;
-                    const auto k = k_tile * k_tile_size + tile_k;
-                    for (std::size_t lane = 0; lane < lane_count; ++lane) {
-                        const auto n = n_tile * lane_count + lane;
-                        if (tile_k < k_tile_size && k < k_size && n < n_size) {
-                            packed.values[base + local_k * lane_count + lane] =
-                                weights(k, n);
-                        }
-                    }
-                }
-            }
+    for (std::size_t k = 0; k < k_size; ++k) {
+        const auto k_tile = k / k_tile_size;
+        const auto tile_k = k % k_tile_size;
+        const auto pe = tile_k % pe_count;
+        const auto local_k = tile_k / pe_count;
+        for (std::size_t n = 0; n < n_size; ++n) {
+            const auto n_tile = n / lane_count;
+            const auto lane = n % lane_count;
+            const auto base = packed.offset(n_tile, k_tile, pe);
+            packed.values[base + local_k * lane_count + lane] = weights(k, n);
         }
     }
     return packed;
