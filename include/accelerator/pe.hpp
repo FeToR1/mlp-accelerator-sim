@@ -22,7 +22,8 @@ SC_MODULE(PE) {
           microbatch_size(microbatch_size) {}
 
     void load(const std::vector<float>& input,
-              const std::vector<float>& weights, std::size_t batch_count);
+              const std::vector<float>& weights, std::size_t batch_count,
+              std::size_t output_count);
     void clear_acc();
     void compute();
 
@@ -37,6 +38,7 @@ SC_MODULE(PE) {
     const std::size_t microbatch_size;
     std::size_t batch_count = 0;
     std::size_t k_count = 0;
+    std::size_t output_count = 0;
     std::vector<float> x;
     std::vector<float> w;
 };

@@ -24,13 +24,18 @@ void PEArray::clear_acc() {
 }
 
 void PEArray::load(DMA& dma, const std::vector<float>& input,
-                   std::uint64_t weight_tile_addr, std::size_t batch_count) {
+                   std::uint64_t weight_tile_addr, std::size_t batch_count,
+                   std::size_t output_count) {
     if (batch_count == 0 || batch_count > std::size_t(config.microbatch_size) ||
         input.size() % batch_count != 0) {
         throw std::invalid_argument("PE array input must fit microbatch size");
     }
     const auto k_count = input.size() / batch_count;
     const auto lane_count = std::size_t(config.output_tile_size);
+    if (output_count == 0 || output_count > lane_count) {
+        throw std::invalid_argument(
+            "PE array outputs must fit one output tile");
+    }
     if (k_count > std::size_t(config.k_tile_size)) {
         throw std::invalid_argument("PE array blocks must fit one K tile");
     }
@@ -53,7 +58,8 @@ void PEArray::load(DMA& dma, const std::vector<float>& input,
         const auto valid_weight_count =
             local_input.size() / batch_count * lane_count;
         pe.load(pe.input_sram.read(local_input.size()),
-                pe.weight_sram.read(valid_weight_count), batch_count);
+                pe.weight_sram.read(valid_weight_count), batch_count,
+                output_count);
     }
 }
 

@@ -16,7 +16,8 @@ SC_MODULE(PEArray) {
 
     void clear_acc();
     void load(DMA & dma, const std::vector<float>& input,
-              std::uint64_t weight_tile_addr, std::size_t batch_count);
+              std::uint64_t weight_tile_addr, std::size_t batch_count,
+              std::size_t output_count);
     void compute();
 
     sc_core::sc_vector<PE> pes;

@@ -27,20 +27,13 @@ SC_MODULE(PEArrayDemo) {
     const accelerator::FCCommand& command;
 
     void run() {
-        std::cout << "K tiles begin: " << sc_core::sc_time_stamp() << '\n';
+        std::cout << "N/K tiles begin: " << sc_core::sc_time_stamp() << '\n';
         const auto result = scheduler.execute(command);
-        std::cout << "K tiles + reduction end: " << sc_core::sc_time_stamp()
+        std::cout << "N/K tiles + reduction end: " << sc_core::sc_time_stamp()
                   << '\n';
         for (std::size_t pe_id = 0; pe_id < array.pes.size(); ++pe_id) {
             const auto& pe = array.pes[pe_id];
             std::cout << "PE[" << pe_id << "] MAC ops=" << pe.mac_count << '\n';
-            for (std::size_t m = 0; m < command.m; ++m) {
-                std::cout << "  ACC[" << m << "]:";
-                for (std::size_t lane = 0; lane < command.n; ++lane) {
-                    std::cout << ' ' << pe.acc[m * command.n + lane];
-                }
-                std::cout << '\n';
-            }
         }
 
         for (std::size_t m = 0; m < command.m; ++m) {
@@ -62,18 +55,22 @@ int sc_main(int argc, char* argv[]) {
 
     accelerator::FCCommand command;
     command.m = 2;
-    command.n = config.output_tile_size;
     const auto k_size = argc > 2 ? std::stoi(argv[2]) : config.k_tile_size + 1;
-    if (k_size <= 0) {
-        throw std::invalid_argument("K must be positive");
+    const auto n_size =
+        argc > 3 ? std::stoi(argv[3]) : config.output_tile_size + 1;
+    if (k_size <= 0 || n_size <= 0) {
+        throw std::invalid_argument("K and N must be positive");
     }
     command.k = k_size;
+    command.n = n_size;
 
     accelerator::WeightMatrix weights(command.k, command.n);
-    for (std::size_t k = 0; k < command.k; ++k) {
-        weights.row(k) << 1.0f, 2.0f, -1.0f, 0.0f;
+    const std::vector<float> regular_weights{1.0f, 2.0f, -1.0f, 0.0f};
+    const std::vector<float> last_weights{4.0f, 1.0f, -1.0f, 1.0f};
+    for (std::size_t n = 0; n < command.n; ++n) {
+        weights.col(n).setConstant(regular_weights[n % regular_weights.size()]);
+        weights(command.k - 1, n) = last_weights[n % last_weights.size()];
     }
-    weights.row(command.k - 1) << 4.0f, 1.0f, -1.0f, 1.0f;
     const auto packed = accelerator::pack_weights(weights, config);
     std::cout << "Packed weights: N tiles=" << packed.n_tiles
               << ", K tiles=" << packed.k_tiles

@@ -11,7 +11,7 @@ Python-модуль `nn` предоставляет `MLP`, `Parameters` и `SGD`
 
 Текущая версия содержит исходную MLP, конфигурацию ускорителя, FC-команду,
 RAM, DMA, локальные SRAM, параметризуемый массив PE, reduction, упаковку весов,
-планировщик K-плиток и счётчик транзакций,
+планировщик N/K-плиток и счётчик транзакций,
 воспроизводимую сборку, эксперимент на MNIST и
 [описание архитектуры](docs/architecture/README.md).
 Полный FC с bias, sigmoid и записью Y пока не реализован.
@@ -39,7 +39,7 @@ src/accelerator/reduction.cpp      приём блоков и дерево сл�
 include/accelerator/packed_weights.hpp  формат весовых плиток
 src/accelerator/packed_weights.cpp  упаковка Eigen-матрицы по плиткам и PE
 include/accelerator/scheduler.hpp   управление обработкой плиток
-src/accelerator/scheduler.cpp       обход K-плиток с сохранением ACC
+src/accelerator/scheduler.cpp       обход N/K-плиток с сохранением ACC
 include/simulator/transactions.hpp типы обменов и статистика
 src/simulator/transactions.cpp     ожидание и учёт передач
 python/notebooks/mnist_experiment.ipynb
@@ -596,6 +596,55 @@ Model time=33, transactions=33, transferred bytes=5288
 Пока `Scheduler` принимает один microbatch (`1 <= M <= microbatch_size`)
 и одну полную выходную плитку (`N == output_tile_size`). Bias, sigmoid
 и запись Y ещё не подключены. Следующий этап — обход выходных плиток N.
+
+### Семнадцатый шаг: N tiling
+
+`Scheduler::execute()` принимает произвольные положительные N и K,
+пока M помещается в один microbatch. Внешний цикл обходит выходы с шагом
+`output_tile_size`. Для каждой выходной плитки ACC очищаются, затем
+выполняются все K-плитки и одна reduction.
+
+Индекс весовой плитки в RAM — `n_tile × ceil(K/k_tile_size) + k_tile`.
+X читается заново для каждой выходной плитки; отдельного кэша входов нет.
+Результаты reduction собираются в обычный массив `[M, N]`, содержащий
+линейные суммы без bias и sigmoid. Запись через Output SRAM ещё не подключена.
+
+`output_count = min(output_tile_size, N-n0)` передаётся через `PEArray::load()`
+в `PE::load()`. PE вычисляет только действительные линии. Шаг строк ACC
+и весов остаётся равным `output_tile_size`; SRAM и ACC сохраняют размер.
+Padding N остаётся в передаваемых весах, но не создаёт полезных MAC.
+Reduction получает полный блок `[M, output_tile_size]` от каждого PE;
+в итоговый массив копируются только `output_count` действительных столбцов.
+
+Пример по умолчанию использует `M=2, K=65, N=5`. Коэффициенты из предыдущего
+шага повторяются по выходам с периодом 4, поэтому пятый выход равен первому.
+Первый аргумент запуска — число PE, второй — K, третий — N:
+
+```powershell
+.\build\mlp_accelerator_sim.exe 4 65 5
+```
+
+```text
+PE[0] MAC ops=170
+PE[1] MAC ops=160
+PE[2] MAC ops=160
+PE[3] MAC ops=160
+Reduced[0]: 68 129 -65 1 68
+Reduced[1]: 136 258 -130 2 136
+Model time=66, transactions=66, transferred bytes=10576
+```
+
+Всего выполняется `M × K × N = 650` полезных MAC. Packed weights занимают
+4096 байт, RAM с входами и выравниванием — 4624 байта. ACC повторно
+используются между выходными плитками; счётчики MAC продолжают накапливаться.
+Вывод примера показывает полный результат и суммарные MAC каждого PE.
+
+Число транзакций предыдущего шага умножается на `ceil(N/output_tile_size)`:
+каждая выходная плитка повторяет загрузки X, загрузки весов и reduction.
+Для неполной выходной плитки размеры весовых блоков и блоков reduction
+остаются такими же, как для полной, несмотря на меньшее число полезных MAC.
+
+Следующий этап — разбиение M на несколько microbatch.
 
 Разработка идёт отдельными этапами и коммитами: config; FC command;
 RAM и packing; счётчики транзакций; DMA/SRAM;
