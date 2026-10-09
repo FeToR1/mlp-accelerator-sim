@@ -18,6 +18,7 @@ enum class TransactionType {
     PeToReduction,
     DmaToBias,
     ReductionToBias,
+    BiasToLut,
     Count
 };
 

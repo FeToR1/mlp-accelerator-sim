@@ -52,6 +52,7 @@ std::vector<float> Scheduler::execute(const FCCommand& command) {
             auto reduced =
                 reduction.reduce(array.pes, batch_count * lane_count);
             bias.apply(reduced);
+            lut.apply(reduced, output_count);
             for (std::size_t m = 0; m < batch_count; ++m) {
                 for (std::size_t lane = 0; lane < output_count; ++lane) {
                     result[(m0 + m) * n_size + n0 + lane] =

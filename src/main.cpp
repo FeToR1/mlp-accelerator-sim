@@ -13,6 +13,7 @@
 #include "accelerator/ram.hpp"
 #include "accelerator/reduction.hpp"
 #include "accelerator/scheduler.hpp"
+#include "accelerator/sigmoid_lut.hpp"
 #include "simulator/transactions.hpp"
 
 SC_MODULE(PEArrayDemo) {
@@ -39,7 +40,7 @@ SC_MODULE(PEArrayDemo) {
         }
 
         for (std::size_t m = 0; m < command.m; ++m) {
-            std::cout << "Affine[" << m << "]:";
+            std::cout << "Y[" << m << "]:";
             for (std::size_t lane = 0; lane < command.n; ++lane) {
                 std::cout << ' ' << result[m * command.n + lane];
             }
@@ -113,8 +114,9 @@ int sc_main(int argc, char* argv[]) {
     accelerator::PEArray array("array", config, transactions);
     accelerator::Reduction reduction("reduction", transactions);
     accelerator::Bias bias("bias", transactions, config.output_tile_size);
+    accelerator::SigmoidLUT lut("lut", transactions, config.output_tile_size);
     accelerator::Scheduler scheduler("scheduler", config, dma, array, reduction,
-                                     bias);
+                                     bias, lut);
     PEArrayDemo demo("demo", scheduler, array, command);
 
     std::cout << "PE=" << config.pe_count
@@ -129,6 +131,11 @@ int sc_main(int argc, char* argv[]) {
         std::cout << ' ' << value;
     }
     std::cout << '\n';
+    std::cout << "Sigmoid LUT: entries=" << accelerator::SigmoidLUT::table_size
+              << ", bytes=" << lut.size_bytes() << '\n';
+    for (const float value : {-16.0f, -1.1f, 0.0f, 1.1f, 16.0f}) {
+        std::cout << "LUT(" << value << ")=" << lut.lookup(value) << '\n';
+    }
     std::cout << "FC: M=" << command.m << ", N=" << command.n
               << ", K=" << command.k << '\n';
     std::cout << "X address=" << command.x_addr
@@ -161,6 +168,8 @@ int sc_main(int argc, char* argv[]) {
         transactions.stats(simulator::TransactionType::DmaToBias);
     const auto& reduction_bias =
         transactions.stats(simulator::TransactionType::ReductionToBias);
+    const auto& bias_lut =
+        transactions.stats(simulator::TransactionType::BiasToLut);
     std::cout << "RAM -> DMA: count=" << ram_dma.count
               << ", bytes=" << ram_dma.bytes << '\n';
     std::cout << "DMA -> SRAM: count=" << dma_sram.count
@@ -179,5 +188,7 @@ int sc_main(int argc, char* argv[]) {
               << ", bytes=" << dma_bias.bytes << '\n';
     std::cout << "Reduction -> Bias: count=" << reduction_bias.count
               << ", bytes=" << reduction_bias.bytes << '\n';
+    std::cout << "Bias -> LUT: count=" << bias_lut.count
+              << ", bytes=" << bias_lut.bytes << '\n';
     return 0;
 }
