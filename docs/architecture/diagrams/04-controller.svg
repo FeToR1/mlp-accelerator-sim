@@ -12,8 +12,8 @@
 <text x="229.5" y="341.0" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#152d46" text-anchor="middle">исходная sigmoid</text>
 <rect x="552" y="255" width="686" height="110" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="895.0" y="291.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">C++ HardwareBackend::dense(command)</text>
-<text x="895.0" y="316.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">упаковщик + модель DMA/SRAM/PE/LUT</text>
-<text x="895.0" y="341.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">прямой проход и счётчики ресурсов</text>
+<text x="895.0" y="316.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">packer + модель DMA/SRAM/PE/LUT</text>
+<text x="895.0" y="341.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">forward pass и счётчики ресурсов</text>
 <polyline points="230,195 230,255" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
 <polyline points="895,195 895,255" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
 <rect x="552" y="405" width="686" height="115" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>

@@ -3,7 +3,7 @@
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#42566d"/></marker></defs>
 <rect width="1280" height="1000" fill="white"/>
 <text x="42" y="47" font-family="Segoe UI,Arial,sans-serif" font-size="29" fill="#152d46" text-anchor="start" font-weight="600">06 / Sigmoid LUT с линейной интерполяцией</text>
-<text x="42" y="82" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#536477" text-anchor="start">Функция фиксирована; exp при инференсе не вычисляется. Таблица: 2049 × float32 = 8196 байт.</text>
+<text x="42" y="82" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#536477" text-anchor="start">Функция фиксирована; exp при inference не вычисляется. Таблица: 2049 × float32 = 8196 байт.</text>
 <rect x="42" y="125" width="340" height="80" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="212.0" y="158.5" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">z = reduction + bias</text>
 <text x="212.0" y="183.5" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">один итоговый скаляр</text>

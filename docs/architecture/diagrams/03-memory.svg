@@ -46,16 +46,16 @@
 <polyline points="630,612 755,612" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
 <rect x="55" y="710" width="575" height="80" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="342.5" y="743.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">ACC[8][4] сохраняются</text>
-<text x="342.5" y="768.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">через все K-tiles текущего output tile</text>
+<text x="342.5" y="768.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">через все K tiles текущего output tile</text>
 <rect x="755" y="710" width="465" height="80" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="987.5" y="743.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">M, N, K могут быть некратными</text>
 <text x="987.5" y="768.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">маски + нули; Y без padding</text>
 <polyline points="342,655 342,710" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
 <polyline points="988,655 988,710" fill="none" stroke="#42566d" stroke-width="2" marker-end="url(#arrow)"/>
-<text x="640" y="823" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Order: microbatch → output tile → K-tile → local_k → image</text>
+<text x="640" y="823" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Order: microbatch → output tile → K tile → local_k → image</text>
 <rect x="42" y="850" width="1196" height="103" rx="10" fill="#f5f7fa" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="640.0" y="882.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Microbatch = 8, поэтому при batch = 32 один и тот же weight tile</text>
 <text x="640.0" y="907.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">загружается для четырёх microbatch.</text>
-<text x="640.0" y="932.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Partial sums остаются в ACC до завершения всех K-tiles.</text>
+<text x="640.0" y="932.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Partial sums остаются в ACC до завершения всех K tiles.</text>
 <text x="42" y="979" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#687a8b" text-anchor="start">mlp-accelerator-sim · Архитектура · Базовая конфигурация: 4 PE</text>
 </svg>

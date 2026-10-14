@@ -63,7 +63,7 @@
 <text x="640.0" y="783.5" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#152d46" text-anchor="middle">Переключение A/B: DMA_READY &amp;&amp; COMPUTE_DONE</text>
 <rect x="42" y="825" width="1196" height="103" rx="10" fill="#f5f7fa" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="640.0" y="857.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Период полного tile ≥ max(192,128) = 192 cycles; вся загрузка не скрывается.</text>
-<text x="640.0" y="882.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Шкала показывает выдачу MAC, без задержки их завершения, bias, редукции и LUT.</text>
+<text x="640.0" y="882.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Шкала показывает выдачу MAC, без задержки их завершения, bias, reduction и LUT.</text>
 <text x="640.0" y="907.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Output SRAM A/B может перекрывать выгрузку с новым tile, но использует тот же DMA.</text>
 <text x="42" y="979" font-family="Segoe UI,Arial,sans-serif" font-size="14" fill="#687a8b" text-anchor="start">mlp-accelerator-sim · Архитектура · Базовая конфигурация: 4 PE</text>
 </svg>

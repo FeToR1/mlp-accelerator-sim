@@ -76,7 +76,7 @@
 <polyline points="745,610 745,635" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
 <polyline points="1040,610 1040,635" fill="none" stroke="#42566d" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
 <rect x="365" y="770" width="550" height="62" rx="10" fill="#e4f3ee" stroke="#7d94aa" stroke-width="1.6"/>
-<text x="640.0" y="794.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Редукция 4→1 → +bias → sigmoid LUT</text>
+<text x="640.0" y="794.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">reduction 4→1 → +bias → sigmoid LUT</text>
 <text x="640.0" y="819.5" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#152d46" text-anchor="middle">Сумма частичных dot product от 4 PE</text>
 <rect x="440" y="884" width="400" height="60" rx="10" fill="#eef5fc" stroke="#7d94aa" stroke-width="1.6"/>
 <text x="640.0" y="920.0" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#152d46" text-anchor="middle">Output SRAM A/B → DMA</text>
